@@ -1,0 +1,35 @@
+name: A unique find
+description: Something came off your fishing line that Creel didn't know about.
+labels: ["unique find"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting it. In the game, open the Fishing Book's Collection
+        tab, click the find under Unique finds, and press Report this find. Copy
+        the report it shows (Ctrl+C) and paste it below.
+
+  - type: textarea
+    id: report
+    attributes:
+      label: The report from Creel
+      description: Paste it as it is. It has the item, where and when you caught it, and your fishing skill.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How was it caught?
+      description: Anything that might matter. A school of fish or open water, a lure, the time of day, an event that was on, a quest you had.
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: A screenshot, if you have one
+      description: Drag it in here. The loot window or the item's tooltip is ideal.
+    validations:
+      required: false

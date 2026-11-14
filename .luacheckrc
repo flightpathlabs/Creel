@@ -137,6 +137,7 @@ read_globals = {
     "ClearOverrideBindings",
     "GetBindingAction",
     "GetBindingText",
+    "GetBuildInfo",
     "GetInboxHeaderInfo",
     "GetInboxInvoiceInfo",
     "GetInboxNumItems",

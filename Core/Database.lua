@@ -24,6 +24,9 @@ local function NewBook()
         totals = { seconds = 0, catches = 0, casts = 0, trips = 0 },
         records = {}, -- name -> { value, tripStartAt }
         sales = { vendor = {}, auction = {} }, -- item ID -> copper
+        -- Item ID -> the first of a catch Creel didn't know about; see
+        -- Fishing/Log.lua. Older books gain it with their first such catch.
+        finds = {},
     }
 end
 

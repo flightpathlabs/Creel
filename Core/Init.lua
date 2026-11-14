@@ -50,6 +50,14 @@ ns.DEFAULT_SETTINGS = {
 
     -- Minutes without a cast before a trip ends by itself.
     idleMinutes = 10,
+
+    -- The big moment on the catch card, with the epic-loot sound, for a
+    -- unique find or anything epic or better.
+    specialEffects = true,
+    -- The auction house's sound for a catch worth at least valuableCopper
+    -- (one of it, at auction or else at a vendor).
+    valuableSound = true,
+    valuableCopper = 10000,
 }
 
 ns.SECONDS_PER_DAY = 24 * 60 * 60

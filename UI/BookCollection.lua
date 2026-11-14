@@ -8,6 +8,11 @@ local _, ns = ...
 -- Clicking an icon opens a small card beside it: a line or two about the
 -- catch, where it's been caught best, what it's worth, and what it turns
 -- into, with the values side by side.
+--
+-- Anything caught that Creel didn't know could come off a line is a unique
+-- find. Those go first, under a heading of their own, and their card says
+-- when, where and at what skill the first one came up, with a button that
+-- writes up a report to copy to Creel's GitHub page.
 
 local Kit = ns.Kit
 local BookKit = ns.BookKit
@@ -34,7 +39,23 @@ local GROUPS = {
     { title = "Chests and junk", kinds = { "container", "junk" } },
     { title = "Trophies, contest and quest fish", kinds = { "trophy", "event", "quest" } },
 }
-local OTHER_TITLE = "Other catches"
+
+-- Anything caught that isn't on Creel's list goes in a group of its own at
+-- the top: things the game hands out that nobody knew could be fished up.
+local UNIQUE_TITLE = "Unique finds"
+
+-- Where a unique find is reported: an issue form on Creel's GitHub page.
+local REPORT_ADDRESS = "https://github.com/flightpathlabs/Creel/issues/new?template=unique_find.yml"
+
+-- Art for unique finds, all from the game's own interface code: the loot
+-- toast's glow and its upgrade toast's border glow
+-- (Blizzard_FrameXML\Mainline\AlertFrameSystems), and the ribbon from the
+-- Traveler's Log (Blizzard_EncounterJournal\Mainline\Blizzard_MonthlyActivities).
+local GLOW = "loottoast-glow"
+local BORDER_GLOW = "loottoast-itemborder-glow"
+local TOAST_BORDER = "loottoast-itemborder-white"
+local RIBBON = "activities-ribbon"
+local RIBBON_HEIGHT = 24
 
 local KIND_WORDS = {
     fish = "Fish",
@@ -86,7 +107,7 @@ end
 
 local function KindLine(itemID)
     local entry = ns.Catches and ns.Catches[itemID]
-    local words = entry and KIND_WORDS[entry.kind] or "A catch"
+    local words = entry and KIND_WORDS[entry.kind] or "Not on Creel's list of catches"
     if entry and entry.time then
         words = words .. (entry.time == "night" and " · night only" or " · day only")
     end
@@ -106,8 +127,8 @@ local function KindOrder(kinds)
     return order
 end
 
---- Each group with its item IDs in order, and the caught items the list
---- doesn't know about at the end.
+--- Each group with its item IDs in order, with the unique finds (caught
+--- items the list doesn't know about) first when there are any.
 local function Gather(book)
     local groups = {}
     for _, definition in ipairs(GROUPS) do
@@ -128,17 +149,282 @@ local function Gather(book)
         table.insert(groups, { title = definition.title, items = items })
     end
 
-    local others = {}
+    local finds = {}
     for itemID in pairs(book.fish) do
         if not (ns.Catches and ns.Catches[itemID]) then
-            table.insert(others, itemID)
+            table.insert(finds, itemID)
         end
     end
-    if #others > 0 then
-        table.sort(others)
-        table.insert(groups, { title = OTHER_TITLE, items = others })
+    if #finds > 0 then
+        table.sort(finds)
+        table.insert(groups, 1, { title = UNIQUE_TITLE, items = finds, unique = true })
     end
     return groups
+end
+
+-- Unique finds -----------------------------------------------------------------
+
+--- How big the border glow is drawn round a border this many pixels
+--- across: as much bigger as the game's own pair of pictures are.
+local function GlowSize(borderSize)
+    local glow = C_Texture.GetAtlasInfo(BORDER_GLOW)
+    local border = C_Texture.GetAtlasInfo(TOAST_BORDER)
+    if glow and border and border.width > 0 then
+        return borderSize * glow.width / border.width
+    end
+    return borderSize * 1.4
+end
+
+--- A slow shine round a unique find's slot in the gallery, made the first
+--- time a slot needs it. Slots are reused, so it's switched off again for
+--- everything else.
+local function SetShine(slot, on)
+    if not slot.shine then
+        if not on then
+            return
+        end
+        local shine = slot:CreateTexture(nil, "OVERLAY", nil, 1)
+        shine:SetPoint("CENTER")
+        local size = GlowSize(SLOT_SIZE)
+        shine:SetSize(size, size)
+        if not BookKit.SetAtlasIfThere(shine, BORDER_GLOW) then
+            BookKit.SetAtlasIfThere(shine, GLOW)
+        end
+        shine:SetBlendMode("ADD")
+        shine:SetVertexColor(Kit.GOLD[1], Kit.GOLD[2], Kit.GOLD[3])
+
+        shine.anim = shine:CreateAnimationGroup()
+        shine.anim:SetLooping("BOUNCE")
+        local breathe = shine.anim:CreateAnimation("Alpha")
+        breathe:SetFromAlpha(0.15)
+        breathe:SetToAlpha(0.55)
+        breathe:SetDuration(1.6)
+        breathe:SetSmoothing("IN_OUT")
+        slot.shine = shine
+    end
+    slot.shine:SetShown(on)
+    if on then
+        if not slot.shine.anim:IsPlaying() then
+            slot.shine.anim:Play()
+        end
+    else
+        slot.shine.anim:Stop()
+    end
+end
+
+--- The unique finds' heading stands apart from the rest: a soft gold light
+--- behind it and the title in the colour of legendary loot. Headings are
+--- reused, so the others are put back as they were.
+local function DressHeading(heading, unique)
+    if not heading.band then
+        if not unique then
+            return
+        end
+        local band = heading:CreateTexture(nil, "BACKGROUND")
+        BookKit.SetAtlasIfThere(band, GLOW)
+        band:SetBlendMode("ADD")
+        band:SetVertexColor(Kit.GOLD[1], Kit.GOLD[2], Kit.GOLD[3])
+        band:SetAlpha(0.45)
+        band:SetPoint("TOPLEFT", heading.title, "TOPLEFT", -24, 10)
+        band:SetPoint("BOTTOMRIGHT", heading.note, "BOTTOMRIGHT", 24, -10)
+        heading.band = band
+    end
+    heading.band:SetShown(unique)
+    if unique then
+        local r, g, b = C_Item.GetItemQualityColor(Enum.ItemQuality.Legendary)
+        heading.title:SetTextColor(r, g, b)
+    else
+        heading.title:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+    end
+end
+
+--- What's known about a unique find's first catch: from the record the
+--- fishing code keeps, or, for a find caught before it kept one, from the
+--- book's own entry for the item.
+local function FindOf(book, itemID)
+    local find = book.finds and book.finds[itemID]
+    if find then
+        return find
+    end
+    local fish = book.fish[itemID]
+    if not fish then
+        return nil
+    end
+    local spot = fish.firstSpot and book.spots[fish.firstSpot]
+    return {
+        firstAt = fish.firstAt,
+        spotID = fish.firstSpot,
+        zone = spot and spot.zone,
+        subzone = spot and ns.Spots.Name(spot),
+        mapID = spot and spot.mapID,
+        mapX = spot and spot.mapX,
+        mapY = spot and spot.mapY,
+    }
+end
+
+--- "Lake Everstill, Redridge Mountains", or as much of it as is known.
+local function PlaceText(find)
+    local parts = {}
+    if find.subzone and find.subzone ~= "" and find.subzone ~= find.zone then
+        table.insert(parts, find.subzone)
+    end
+    if find.zone and find.zone ~= "" then
+        table.insert(parts, find.zone)
+    end
+    return #parts > 0 and table.concat(parts, ", ") or nil
+end
+
+--- The report to paste into the issue form: plain text, one fact a line.
+local function ReportText(itemID)
+    local book = ns.Book()
+    local find = FindOf(book, itemID) or {}
+    local fish = book.fish[itemID]
+    local name = C_Item.GetItemNameByID(itemID) or "(name not loaded)"
+    local link = select(2, C_Item.GetItemInfo(itemID))
+    local itemString = link and link:match("|H(item:[^|]+)|h")
+
+    local lines = {
+        "Creel unique find",
+        ("Item: %s"):format(name),
+        ("Item ID: %d"):format(itemID),
+    }
+    if itemString then
+        table.insert(lines, ("Item link: [%s] %s"):format(name, itemString))
+    end
+    table.insert(lines, ("Zone: %s"):format(find.zone or "unknown"))
+    if find.subzone and find.subzone ~= "" then
+        table.insert(lines, ("Subzone: %s"):format(find.subzone))
+    end
+    if find.mapX and find.mapY then
+        local map = find.mapID and C_Map.GetMapInfo(find.mapID)
+        table.insert(
+            lines,
+            ("Coordinates: %.1f, %.1f%s"):format(
+                find.mapX * 100,
+                find.mapY * 100,
+                map and map.name and (" (%s, map %d)"):format(map.name, find.mapID) or ""
+            )
+        )
+    end
+    if find.skill then
+        table.insert(lines, ("Fishing skill: %d"):format(find.skill))
+    end
+    if find.firstAt then
+        table.insert(lines, ("First caught: %s"):format(date("%Y-%m-%d %H:%M", find.firstAt)))
+    end
+    if fish then
+        table.insert(lines, ("Times caught: %d"):format(fish.caught or 0))
+    end
+    local version, build = GetBuildInfo()
+    table.insert(lines, ("Game: %s (%s)"):format(version or "?", build or "?"))
+    local creel = C_AddOns.GetAddOnMetadata(ns.name, "Version")
+    table.insert(lines, ("Creel: %s"):format(creel or "?"))
+    return table.concat(lines, "\n")
+end
+
+-- The report window: what to copy and where to paste it. An addon can't
+-- send anything anywhere, so this is as far as it goes.
+local REPORT_WIDTH = 440
+local REPORT_TEXT_HEIGHT = 190
+local report
+
+--- An edit box that shows a text and won't let it be changed: anything
+--- typed puts the text back, all of it selected, ready for Ctrl+C.
+local function ReadOnly(box)
+    local function SelectAll(self)
+        self:SetFocus()
+        self:HighlightText()
+    end
+    box:SetAutoFocus(false)
+    box:SetScript("OnTextChanged", function(self, userInput)
+        if userInput then
+            self:SetText(self.fixed or "")
+            self:HighlightText()
+        end
+    end)
+    box:SetScript("OnEditFocusGained", function(self)
+        self:HighlightText()
+    end)
+    box:SetScript("OnMouseUp", SelectAll)
+    box:SetScript("OnEscapePressed", function()
+        report:Hide()
+    end)
+    box:SetScript("OnEditFocusLost", function(self)
+        self:HighlightText(0, 0)
+    end)
+end
+
+local function CreateReport()
+    report = CreateFrame("Frame", nil, UIParent)
+    report:SetSize(REPORT_WIDTH, REPORT_TEXT_HEIGHT + 196)
+    report:SetPoint("CENTER", 0, 60)
+    report:SetFrameStrata("DIALOG")
+    report:SetToplevel(true)
+    report:EnableMouse(true)
+    report:Hide()
+
+    local border = CreateFrame("Frame", nil, report, "DialogBorderTemplate")
+    border:SetAllPoints()
+    report.header = CreateFrame("Frame", nil, report, "DialogHeaderTemplate")
+    report.header:Setup("Report this find")
+
+    local inner = REPORT_WIDTH - 48
+
+    local intro = Kit.Paragraph(report, "GameFontHighlight")
+    intro:SetWidth(inner)
+    intro:SetPoint("TOP", 0, -32)
+    intro:SetText(
+        "Copy this with Ctrl+C and paste it into the unique find form on Creel's GitHub page. "
+            .. "Nothing is sent from the game."
+    )
+
+    local box = Kit.Box(report)
+    box:SetPoint("TOP", intro, "BOTTOM", 0, -12)
+    box:SetSize(inner, REPORT_TEXT_HEIGHT)
+
+    report.text = CreateFrame("EditBox", nil, box)
+    report.text:SetMultiLine(true)
+    report.text:SetFontObject("GameFontHighlightSmall")
+    report.text:SetPoint("TOPLEFT", 10, -10)
+    report.text:SetPoint("BOTTOMRIGHT", -10, 10)
+    report.text:SetWidth(inner - 20)
+    ReadOnly(report.text)
+
+    local where = Kit.Text(report, "GameFontNormal")
+    where:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -14)
+    where:SetText("Creel's GitHub page")
+
+    report.address = CreateFrame("EditBox", nil, report, "InputBoxTemplate")
+    report.address:SetHeight(22)
+    report.address:SetPoint("TOPLEFT", where, "BOTTOMLEFT", 6, -4)
+    report.address:SetWidth(inner - 6)
+    report.address:SetFontObject("GameFontHighlightSmall")
+    ReadOnly(report.address)
+
+    local close = Kit.Button(report, OKAY, 110, function()
+        report:Hide()
+    end)
+    close:SetPoint("BOTTOM", 0, 16)
+
+    report:SetScript("OnHide", function()
+        report.text:ClearFocus()
+        report.address:ClearFocus()
+    end)
+end
+
+local function ShowReport(itemID)
+    if not report then
+        CreateReport()
+    end
+    local text = ReportText(itemID)
+    report.text.fixed = text
+    report.text:SetText(text)
+    report.address.fixed = REPORT_ADDRESS
+    report.address:SetText(REPORT_ADDRESS)
+    report.address:SetCursorPosition(0)
+    report:Show()
+    report.text:SetFocus()
+    report.text:HighlightText()
 end
 
 -- The card ---------------------------------------------------------------------
@@ -385,6 +671,46 @@ local function CreateCard(window)
         end
     end)
 
+    -- A unique find's ribbon across the card, and the button that writes
+    -- up a report of it.
+    card.ribbon = CreateFrame("Frame", nil, card)
+    card.ribbon:SetHeight(RIBBON_HEIGHT)
+    local ribbonArt = card.ribbon:CreateTexture(nil, "ARTWORK")
+    ribbonArt:SetPoint("CENTER")
+    local ribbonInfo = C_Texture.GetAtlasInfo(RIBBON)
+    -- The Traveler's Log's ribbon where its shape suits a strip this
+    -- size; a band of gold light otherwise.
+    local ribbonWidth = ribbonInfo
+        and ribbonInfo.height > 0
+        and RIBBON_HEIGHT * ribbonInfo.width / ribbonInfo.height
+    if ribbonWidth and ribbonWidth >= 120 and ribbonWidth <= CARD_WIDTH then
+        ribbonArt:SetAtlas(RIBBON)
+        ribbonArt:SetSize(ribbonWidth, RIBBON_HEIGHT)
+    else
+        BookKit.SetAtlasIfThere(ribbonArt, GLOW)
+        ribbonArt:SetBlendMode("ADD")
+        ribbonArt:SetVertexColor(Kit.GOLD[1], Kit.GOLD[2], Kit.GOLD[3])
+        ribbonArt:SetAlpha(0.6)
+        ribbonArt:SetSize(CARD_WIDTH - 2 * CARD_PADDING, RIBBON_HEIGHT + 8)
+    end
+    local ribbonText = Kit.Text(card.ribbon, "GameFontNormal", "CENTER")
+    ribbonText:SetPoint("CENTER", 0, 1)
+    ribbonText:SetText("Unique find")
+
+    card.report = Kit.Button(card, "Report this find", 150, function()
+        if card.itemID then
+            ShowReport(card.itemID)
+        end
+    end)
+    Kit.Tooltip(card.report, "Report this find", function()
+        return {
+            "Creel didn't know this could come off a fishing line. A report helps "
+                .. "everyone find it.",
+            "Shows a short report to copy into a form on Creel's GitHub page. Nothing "
+                .. "is sent from the game.",
+        }
+    end)
+
     -- A click anywhere else puts the card away. A click on the icon it
     -- belongs to is left to that icon, which closes it as a toggle.
     -- A click on the recipe card opened from this one counts as inside it.
@@ -393,6 +719,9 @@ local function CreateCard(window)
             return
         end
         if ns.RecipeCard and ns.RecipeCard.IsMouseOver() then
+            return
+        end
+        if report and report:IsShown() and report:IsMouseOver() then
             return
         end
         self:Hide()
@@ -469,6 +798,13 @@ local function FillCard(itemID)
     card.kind:SetText(KindLine(itemID))
     y = y + math.max(CARD_ICON, card.name:GetStringHeight() + 18)
 
+    local unique = fish ~= nil and not (ns.Catches and ns.Catches[itemID])
+    card.ribbon:SetShown(unique)
+    card.report:SetShown(unique)
+    if unique then
+        Place(card.ribbon, PART_GAP, RIBBON_HEIGHT)
+    end
+
     for index, line in ipairs(Lore(itemID)) do
         Paragraph(line, index == 1 and PART_GAP or LINE_GAP)
     end
@@ -490,6 +826,33 @@ local function FillCard(itemID)
         local hints = Hints(itemID)
         table.insert(hints, 1, "Not caught yet.")
         Paragraph(Kit.Colored(table.concat(hints, " "), Kit.MUTED), PART_GAP)
+    end
+
+    -- A unique find: when, where and at what skill the first came up, and
+    -- the button to report it.
+    if unique then
+        local find = FindOf(book, itemID) or {}
+        Heading("Your find")
+        if find.firstAt then
+            Pair("First caught", BookKit.DayAndTime(find.firstAt))
+        end
+        local where = PlaceText(find)
+        if where then
+            Pair("Where", where)
+        end
+        if find.mapX and find.mapY then
+            Pair("Map position", ("%.1f, %.1f"):format(find.mapX * 100, find.mapY * 100))
+        end
+        if find.skill then
+            Pair("Fishing skill", tostring(find.skill))
+        end
+        if find.character then
+            Pair("Caught by", BookKit.CharacterName(find.character))
+        end
+        y = y + PART_GAP
+        card.report:ClearAllPoints()
+        card.report:SetPoint("TOPLEFT", CARD_PADDING, -y)
+        y = y + card.report:GetHeight()
     end
 
     -- Where it's been caught best.
@@ -635,7 +998,7 @@ local function FillStats(book, groups)
             end
         end
         group.caught = inGroup
-        if group.title ~= OTHER_TITLE then
+        if not group.unique then
             kinds = kinds + #group.items
             caughtKinds = caughtKinds + inGroup
             table.insert(byGroup, { group.title, ("%d of %d"):format(inGroup, #group.items) })
@@ -683,7 +1046,12 @@ local function Refresh()
     tab.slots:Reset()
     for groupIndex, group in ipairs(groups) do
         local heading = tab.headings:Next()
-        heading:Set(group.title, ("%d of %d"):format(group.caught, #group.items))
+        if group.unique then
+            heading:Set(group.title, ("%d not on Creel's list"):format(#group.items))
+        else
+            heading:Set(group.title, ("%d of %d"):format(group.caught, #group.items))
+        end
+        DressHeading(heading, group.unique == true)
         heading:ClearAllPoints()
         heading:SetPoint("TOPLEFT", 0, -y)
         heading:SetWidth(width)
@@ -696,6 +1064,7 @@ local function Refresh()
             local fish = book.fish[itemID]
             slot.known = fish ~= nil
             BookKit.FillSlot(slot, itemID, fish and fish.caught, slot.known)
+            SetShine(slot, group.unique == true)
             slot:ClearAllPoints()
             slot:SetPoint(
                 "TOPLEFT",

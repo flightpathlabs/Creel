@@ -9,14 +9,15 @@ local _, ns = ...
 -- full bags a fish can stay in the window, and then it wasn't caught yet.
 --
 -- Messages sent from here:
---   CATCH (catch)   catch = { itemID, count, first, spotID, share }
+--   CATCH (catch)   catch = { itemID, count, first, spotID, share, quality,
+--                             unique, special, valuable }
 --   GETAWAY ()
 --   NEXT_POINT (estimate)
 
 local Log = {}
 ns.Log = Log
 
--- Slot -> { itemID, count } for the loot window that's open, if it's a
+-- Slot -> { itemID, count, quality } for the loot window that's open, if it's a
 -- catch. Cleared when the window closes.
 local pending = {}
 
@@ -36,9 +37,13 @@ ns.OnEvent("LOOT_READY", function()
         -- read the first time is left as it is.
         if not pending[slot] and GetLootSlotType(slot) == Enum.LootSlotType.Item then
             local itemID = ItemFromLink(GetLootSlotLink(slot))
-            local quantity = select(3, GetLootSlotInfo(slot))
+            local _, _, quantity, _, quality = GetLootSlotInfo(slot)
             if itemID then
-                pending[slot] = { itemID = itemID, count = ns.Readable(quantity) or 1 }
+                pending[slot] = {
+                    itemID = itemID,
+                    count = ns.Readable(quantity) or 1,
+                    quality = ns.Readable(quality),
+                }
             end
         end
     end
@@ -69,7 +74,86 @@ local function UpdateRecords(book, trip)
     end
 end
 
-local function Record(itemID, count)
+-- Unique finds and big moments --------------------------------------------
+
+-- Anything off a line that isn't on Creel's list is a unique find: the
+-- game may hand out things nobody knew could be fished up. The first one
+-- is remembered with where, when and at what skill, so it can be reported.
+local function RecordFind(book, itemID, spotID)
+    book.finds = book.finds or {}
+    if book.finds[itemID] then
+        return
+    end
+    local here = ns.Spots.Here() or {}
+    book.finds[itemID] = {
+        firstAt = time(),
+        spotID = spotID,
+        zone = here.zone,
+        subzone = here.subzone,
+        mapID = here.mapID,
+        mapX = here.mapX,
+        mapY = here.mapY,
+        skill = ns.State.EffectiveSkill(),
+        character = ns.CharacterKey(),
+    }
+end
+
+-- What makes a catch worth a fuss. The quality and the vendor's price both
+-- come from the client's item cache, so this runs once the item is in it.
+local function Mark(catch)
+    local itemID = catch.itemID
+    catch.quality = catch.quality or C_Item.GetItemQualityByID(itemID)
+    catch.unique = not (ns.Catches and ns.Catches[itemID]) or nil
+    catch.special = (catch.unique or (catch.quality or 0) >= Enum.ItemQuality.Epic) or nil
+
+    -- Worth a lot by one of it, not by the stack.
+    local worth = ns.Values.Auction(itemID) or ns.Values.Vendor(itemID)
+    local threshold = ns.settings.valuableCopper or 0
+    catch.valuable = (worth and threshold > 0 and worth >= threshold) or nil
+end
+
+-- How long a catch's message waits for the client to load an item it
+-- hasn't seen before. It goes out once this is up, loaded or not.
+local LOAD_WAIT = 2
+
+-- Item ID -> the sends waiting for it to load.
+local loading = {}
+
+ns.OnEvent("ITEM_DATA_LOAD_RESULT", function(itemID)
+    local sends = loading[itemID]
+    if sends then
+        loading[itemID] = nil
+        for _, send in ipairs(sends) do
+            send()
+        end
+    end
+end)
+
+-- The book is written at once; only the message waits, and only for an
+-- item new to the client. Something just looted is nearly always known.
+local function SendWhenKnown(catch)
+    local sent = false
+    local function Send()
+        if sent then
+            return
+        end
+        sent = true
+        Mark(catch)
+        ns.Send("CATCH", catch)
+    end
+
+    local itemID = catch.itemID
+    if C_Item.IsItemDataCachedByID(itemID) or not C_Item.DoesItemExistByID(itemID) then
+        Send()
+        return
+    end
+    loading[itemID] = loading[itemID] or {}
+    table.insert(loading[itemID], Send)
+    C_Item.RequestLoadItemDataByID(itemID)
+    C_Timer.After(LOAD_WAIT, Send)
+end
+
+local function Record(itemID, count, quality)
     local book = ns.Book()
     local trip = ns.State.trip
     local now = time()
@@ -126,13 +210,18 @@ local function Record(itemID, count)
         end
     end
 
+    if not (ns.Catches and ns.Catches[itemID]) then
+        RecordFind(book, itemID, spotID)
+    end
+
     sinceLastPoint = sinceLastPoint + count
-    ns.Send("CATCH", {
+    SendWhenKnown({
         itemID = itemID,
         count = count,
         first = first,
         spotID = spotID,
         share = spot and ns.Spots.Share(spot, itemID) or nil,
+        quality = quality,
     })
 end
 
@@ -140,7 +229,7 @@ ns.OnEvent("LOOT_SLOT_CLEARED", function(slot)
     local catch = pending[slot]
     if catch then
         pending[slot] = nil
-        Record(catch.itemID, catch.count)
+        Record(catch.itemID, catch.count, catch.quality)
     end
 end)
 

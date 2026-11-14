@@ -7,7 +7,9 @@ local _, ns = ...
 -- while the line is out; the trip's clock and what the water here has
 -- shown so far. Under that, the catch card, where each catch lands with
 -- Blizzard's own loot-toast border and glow, its worth both ways and a
--- line of tip or trivia. Then the trip's tally and what it's worth.
+-- line of tip or trivia. A unique find or an epic catch gets the grander
+-- toast's art and sound for as long as it's the latest; something worth a
+-- lot gets the auction house's sound. Then the trip's tally and its worth.
 --
 -- Folded, it's the top line alone. It hangs from UIParent, so Alt+Z hides
 -- it with the rest of the interface, and it's an ordinary frame, so it
@@ -59,6 +61,18 @@ local CARD_BORDER = 46
 local CARD_HEIGHT = CARD_BORDER
 local CARD_TEXT_LEFT = CARD_BORDER + 8
 local CARD_TEXT_WIDTH = INNER - CARD_TEXT_LEFT
+
+-- A big moment's card sits on the toast's grander background, which is
+-- 276 by 96 with the icon 22 pixels in from the left and the words after
+-- it. Drawn across the panel, it keeps those proportions.
+local BIG_HEIGHT = math.floor(INNER * 96 / 276 + 0.5)
+local BIG_SLOT_LEFT = 20
+local BIG_TEXT_LEFT = BIG_SLOT_LEFT + CARD_BORDER + 8
+local BIG_TEXT_RIGHT = 18
+local BIG_TEXT_WIDTH = INNER - BIG_TEXT_LEFT - BIG_TEXT_RIGHT
+local BIG_TEXT_TOP = 14
+local SHEEN_WIDTH = 110
+
 local TIP_GAP = 6
 local TIP_LINES = 2
 
@@ -110,6 +124,16 @@ local BORDER_BY_QUALITY = {
     [Enum.ItemQuality.Legendary] = "loottoast-itemborder-orange",
 }
 local GLOW = "loottoast-glow"
+-- The big moment: the "upgraded" loot toast's background, with the quest
+-- reward toast's as a fallback and the classic toast's own picture after
+-- that; the upgrade toast's border glow and sheen. Both toasts are loaded
+-- on Forever (Mainline\AlertFrameSystems).
+local BIG_BACKS = { "LootToast-MoreAwesome", "loottoast-bg-questrewardupgrade" }
+local TOAST_FILE = "Interface\\LootFrame\\LootToast"
+local TOAST_BACK_COORDS = { 0.28222656, 0.55175781, 0.578125, 0.953125 }
+local TOAST_SHEEN_COORDS = { 0.56347656, 0.73046875, 0.57421875, 0.8671875 }
+local BORDER_GLOW = "loottoast-itemborder-glow"
+local SHEEN = "loottoast-sheen"
 local TIMER_FILL = "ui-castingbar-filling-channel"
 local TIMER_BACK = "ui-castingbar-background"
 local SPEAKER = "voicechat-icon-speaker"
@@ -159,8 +183,8 @@ local overriddenSetting
 -- ending a trip doesn't wipe the panel the moment it's done.
 local lastTrip
 
--- The latest catch on the card: { itemID, first, count, rare, tip }. Nil
--- before any this trip.
+-- The latest catch on the card: { itemID, first, count, rare, tip, quality,
+-- unique, special, valuable }. Nil before any this trip.
 local latest
 
 local Refresh
@@ -795,8 +819,66 @@ local function DetailText(quality)
     return table.concat(parts, SEPARATOR)
 end
 
+-- A unique find, or anything epic or better, gets the big moment unless
+-- the player has switched it off.
+local function IsBig(this)
+    return this and this.special and ns.settings.specialEffects
+end
+
+-- A catch worth a lot gets the auction house's sound and its worth in
+-- gold, both under the one setting.
+local function IsValuable(this)
+    return this and this.valuable and ns.settings.valuableSound
+end
+
+-- The banner over a big moment's name, in the item's own colour where
+-- that's grand enough to show, and the game's gold otherwise.
+local function BannerFor(this, quality)
+    local grand = quality and quality >= Enum.ItemQuality.Epic
+    local color = grand and QualityColor(quality) or Kit.GOLD
+    if this.unique then
+        return "Unique find!", color
+    elseif quality and quality >= Enum.ItemQuality.Legendary then
+        return "Legendary catch!", color
+    end
+    return "Epic catch!", color
+end
+
+-- One of the game's own sounds, on the effects channel, so quietening the
+-- rest while fishing leaves it alone.
+local function PlayKit(name)
+    local kit = SOUNDKIT and SOUNDKIT[name]
+    if kit then
+        PlaySound(kit, "SFX")
+    end
+end
+
+-- The card in one of its two shapes: the toast-sized one every catch
+-- gets, or the big moment's, on the grander background with a banner.
+local function ShapeCard(big)
+    local card = panel.card
+    card:SetHeight(big and BIG_HEIGHT or CARD_HEIGHT)
+    card.back:SetShown(big)
+    card.banner:SetShown(big)
+
+    card.slot:ClearAllPoints()
+    card.name:ClearAllPoints()
+    if big then
+        card.slot:SetPoint("LEFT", BIG_SLOT_LEFT, 0)
+        card.name:SetPoint("TOPLEFT", card.banner, "BOTTOMLEFT", 0, -3)
+    else
+        card.slot:SetPoint("TOPLEFT")
+        card.name:SetPoint("TOPLEFT", CARD_TEXT_LEFT, -2)
+    end
+    card.textWidth = big and BIG_TEXT_WIDTH or CARD_TEXT_WIDTH
+    for _, text in ipairs({ card.name, card.detail, card.values }) do
+        text:SetWidth(card.textWidth)
+    end
+end
+
 local function FillPlaceholder()
     local card = panel.card
+    ShapeCard(false)
     Kit.SetSpellIcon(card.icon, C_Spell.GetSpellTexture(ns.State.spellID or FISHING_SPELL))
     card.icon:SetDesaturated(true)
     card.icon:SetAlpha(0.25)
@@ -819,7 +901,15 @@ local function FillCatch()
     Kit.SetSpellIcon(card.icon, C_Item.GetItemIconByID(itemID))
     card.icon:SetAlpha(1)
 
-    local quality = C_Item.GetItemQualityByID(itemID)
+    local quality = C_Item.GetItemQualityByID(itemID) or latest.quality
+    local big = IsBig(latest)
+    ShapeCard(big)
+    if big then
+        local words, color = BannerFor(latest, quality)
+        card.banner:SetText(words)
+        card.banner:SetTextColor(unpack(color))
+    end
+
     card.border:SetAtlas(BORDER_BY_QUALITY[quality] or BORDER_BY_QUALITY[Enum.ItemQuality.Common])
     card.border:SetAlpha(1)
     -- The game has no grey loot border, so poor catches get the white one
@@ -834,30 +924,91 @@ local function FillCatch()
     card.name:SetTextColor(unpack(QualityColor(quality)))
     card.detail:SetText(DetailText(quality))
 
+    -- Something worth a lot (and not already having its big moment) says
+    -- so in gold, in place of the two prices.
+    local worth = ns.Values.Auction(itemID) or ns.Values.Vendor(itemID)
+    if IsValuable(latest) and not big and worth then
+        card.values:SetText(Kit.Colored("Worth ", Kit.GOLD) .. ns.Money(worth))
+        return
+    end
+
     -- The price's age goes first if the line runs too long, never a price.
     local full, short = ValuesText(itemID)
     card.values:SetText(full)
-    if card.values:GetUnboundedStringWidth() > CARD_TEXT_WIDTH then
+    if card.values:GetUnboundedStringWidth() > card.textWidth then
         card.values:SetText(short)
     end
 end
 
+local function Play(anim)
+    anim:Stop()
+    anim:GetParent():Show()
+    anim:Play()
+end
+
 -- The icon drops in and settles, and the toast's glow washes over the
 -- card and fades. A rare catch gets a gold flash on top.
-local function Celebrate(rare)
-    if not panel or not panel:IsVisible() or ns.settings.panelCollapsed then
+--
+-- A big moment gets more, the way the game's grander toasts do: a burst
+-- of light in the banner's colour, the border flaring, a sheen across the
+-- card and the epic-loot sound, all done inside a second and a half. A
+-- catch worth a lot gets the auction house's sound and a gold glint on
+-- its worth. Never both sounds: the big moment wins.
+local function Celebrate(this)
+    if not panel or not panel:IsVisible() then
+        return
+    end
+    local big = IsBig(this)
+    if big then
+        local quality = this.quality or C_Item.GetItemQualityByID(this.itemID)
+        if quality and quality >= Enum.ItemQuality.Legendary then
+            PlayKit("UI_LEGENDARY_LOOT_TOAST")
+        else
+            PlayKit("UI_EPICLOOT_TOAST")
+        end
+    elseif IsValuable(this) then
+        PlayKit("AUCTION_WINDOW_OPEN")
+    end
+
+    if ns.settings.panelCollapsed then
         return
     end
     local card = panel.card
     card.drop:Stop()
     card.drop:Play()
-    card.glow:Show()
-    card.glow.anim:Stop()
-    card.glow.anim:Play()
-    if rare then
-        card.flash:Show()
-        card.flash.anim:Stop()
-        card.flash.anim:Play()
+
+    -- The washes are sized to the card's shape at the moment.
+    local height = card:GetHeight()
+    card.glow:SetSize(INNER + 14, height + 16)
+    card.flash:SetSize(INNER + 14, height + 16)
+    Play(card.glow.anim)
+
+    if big then
+        local _, color = BannerFor(this, this.quality or C_Item.GetItemQualityByID(this.itemID))
+        card.burst:SetSize(INNER + 30, height + 34)
+        card.burst:SetVertexColor(unpack(color))
+        Play(card.burst.anim)
+        Play(card.back.anim)
+        Play(card.borderGlow.anim)
+        Play(card.sheen.anim)
+    elseif this.rare then
+        Play(card.flash.anim)
+    end
+    if IsValuable(this) and not big then
+        local width = math.min(card.values:GetUnboundedStringWidth(), card.textWidth)
+        card.glint:SetWidth(width + 36)
+        Play(card.glint.anim)
+    end
+end
+
+-- Alpha steps one after another: { from, to, seconds }.
+local function AddFades(anim, steps)
+    for order, step in ipairs(steps) do
+        local fade = anim:CreateAnimation("Alpha")
+        fade:SetFromAlpha(step[1])
+        fade:SetToAlpha(step[2])
+        fade:SetDuration(step[3])
+        fade:SetOrder(order)
     end
 end
 
@@ -874,17 +1025,114 @@ local function CreateGlow(card, color, steps)
     glow:Hide()
 
     glow.anim = glow:CreateAnimationGroup()
-    for order, step in ipairs(steps) do
-        local fade = glow.anim:CreateAnimation("Alpha")
-        fade:SetFromAlpha(step[1])
-        fade:SetToAlpha(step[2])
-        fade:SetDuration(step[3])
-        fade:SetOrder(order)
-    end
+    AddFades(glow.anim, steps)
     glow.anim:SetScript("OnFinished", function()
         glow:Hide()
     end)
     return glow
+end
+
+-- Points a texture at the first of some atlases the client has.
+local function SetFirstAtlas(texture, atlases)
+    for _, atlas in ipairs(atlases) do
+        if C_Texture.GetAtlasInfo(atlas) then
+            texture:SetAtlas(atlas)
+            return true
+        end
+    end
+    return false
+end
+
+-- The big moment's pieces: the background under everything, the border's
+-- flare on the icon, and the sheen that crosses the card.
+local function CreateBigMoment(card)
+    local back = card:CreateTexture(nil, "BACKGROUND")
+    back:SetAllPoints()
+    if not SetFirstAtlas(back, BIG_BACKS) then
+        back:SetTexture(TOAST_FILE)
+        back:SetTexCoord(unpack(TOAST_BACK_COORDS))
+    end
+    back:Hide()
+    back.anim = back:CreateAnimationGroup()
+    AddFades(back.anim, { { 0, 1, 0.3 } })
+    card.back = back
+
+    card.burst = CreateGlow(card, WHITE, {
+        { 0, 1, 0.15 },
+        { 1, 0.6, 0.25 },
+        { 0.6, 0, 0.7 },
+    })
+
+    -- The flare is drawn larger than the border it lights, by as much as
+    -- the game's own pair of pictures differ.
+    local flare = card.slot:CreateTexture(nil, "OVERLAY")
+    flare:SetBlendMode("ADD")
+    flare:SetPoint("CENTER")
+    local glowInfo = C_Texture.GetAtlasInfo(BORDER_GLOW)
+    local borderInfo = C_Texture.GetAtlasInfo(BORDER_BY_QUALITY[Enum.ItemQuality.Common])
+    local size = CARD_BORDER * 1.4
+    if glowInfo and borderInfo and borderInfo.width > 0 then
+        size = CARD_BORDER * glowInfo.width / borderInfo.width
+    end
+    flare:SetSize(size, size)
+    if glowInfo then
+        flare:SetAtlas(BORDER_GLOW)
+    else
+        flare:SetAtlas(GLOW)
+    end
+    flare:SetAlpha(0)
+    flare:Hide()
+    flare.anim = flare:CreateAnimationGroup()
+    local rise = flare.anim:CreateAnimation("Alpha")
+    rise:SetFromAlpha(0)
+    rise:SetToAlpha(1)
+    rise:SetDuration(0.3)
+    rise:SetSmoothing("IN")
+    rise:SetOrder(1)
+    local fall = flare.anim:CreateAnimation("Alpha")
+    fall:SetFromAlpha(1)
+    fall:SetToAlpha(0)
+    fall:SetDuration(0.8)
+    fall:SetOrder(2)
+    flare.anim:SetScript("OnFinished", function()
+        flare:Hide()
+    end)
+    card.borderGlow = flare
+
+    -- The sheen runs left to right across the words, as on the game's
+    -- upgrade toast, and is gone before it reaches the far edge.
+    local sheen = card:CreateTexture(nil, "OVERLAY")
+    sheen:SetBlendMode("ADD")
+    sheen:SetSize(SHEEN_WIDTH, BIG_HEIGHT - 16)
+    sheen:SetPoint("LEFT", 4, 0)
+    if C_Texture.GetAtlasInfo(SHEEN) then
+        sheen:SetAtlas(SHEEN)
+    else
+        sheen:SetTexture(TOAST_FILE)
+        sheen:SetTexCoord(unpack(TOAST_SHEEN_COORDS))
+    end
+    sheen:SetAlpha(0)
+    sheen:Hide()
+    sheen.anim = sheen:CreateAnimationGroup()
+    sheen.anim:SetToFinalAlpha(true)
+    local show = sheen.anim:CreateAnimation("Alpha")
+    show:SetStartDelay(0.25)
+    show:SetFromAlpha(0)
+    show:SetToAlpha(1)
+    show:SetDuration(0.15)
+    local sweep = sheen.anim:CreateAnimation("Translation")
+    sweep:SetStartDelay(0.25)
+    sweep:SetOffset(INNER - SHEEN_WIDTH - 8, 0)
+    sweep:SetDuration(0.7)
+    local hide = sheen.anim:CreateAnimation("Alpha")
+    hide:SetStartDelay(0.7)
+    hide:SetFromAlpha(1)
+    hide:SetToAlpha(0)
+    hide:SetDuration(0.25)
+    sheen.anim:SetScript("OnFinished", function()
+        sheen:Hide()
+    end)
+    card.sheen = sheen
 end
 
 local function CreateCard(body)
@@ -936,9 +1184,18 @@ local function CreateCard(body)
         { 0.3, 1, 0.15 },
         { 1, 0, 0.6 },
     })
+    CreateBigMoment(card)
+
+    -- A big moment's banner sits over the name, where the toast says "You
+    -- received".
+    card.banner = Kit.Text(card, "GameFontNormal")
+    card.banner:SetPoint("TOPLEFT", BIG_TEXT_LEFT, -BIG_TEXT_TOP)
+    card.banner:SetWidth(BIG_TEXT_WIDTH)
+    card.banner:Hide()
 
     -- Name on top, as the toast has it, then the quality and the count,
     -- then what it's worth.
+    card.textWidth = CARD_TEXT_WIDTH
     card.name = Kit.Text(card, "GameFontNormalMed3")
     card.name:SetPoint("TOPLEFT", CARD_TEXT_LEFT, -2)
     card.name:SetWidth(CARD_TEXT_WIDTH)
@@ -950,6 +1207,12 @@ local function CreateCard(body)
     card.values = Kit.Text(card, "GameFontHighlightSmall")
     card.values:SetPoint("TOPLEFT", card.detail, "BOTTOMLEFT", 0, -3)
     card.values:SetWidth(CARD_TEXT_WIDTH)
+
+    -- A gold glint behind the worth of something worth a lot.
+    card.glint = CreateGlow(card, Kit.GOLD, { { 0, 0.9, 0.15 }, { 0.9, 0, 0.8 } })
+    card.glint:ClearAllPoints()
+    card.glint:SetPoint("LEFT", card.values, "LEFT", -18, 0)
+    card.glint:SetHeight(24)
 
     card.empty = Kit.Text(card, "GameFontHighlightSmall")
     card.empty:SetPoint("LEFT", CARD_TEXT_LEFT, 0)
@@ -1138,7 +1401,7 @@ local function LayOutBody()
     else
         FillPlaceholder()
     end
-    Put(panel.card, CARD_HEIGHT)
+    Put(panel.card, panel.card:GetHeight())
 
     local tip = panel.tip
     local tipText = latest and ns.settings.tips and latest.tip
@@ -1495,6 +1758,10 @@ ns.Listen("CATCH", function(catch)
         first = catch.first,
         count = trip and trip.catches[catch.itemID],
         rare = rare,
+        quality = catch.quality,
+        unique = catch.unique,
+        special = catch.special,
+        valuable = catch.valuable,
     }
     latest = this
 
@@ -1507,7 +1774,7 @@ ns.Listen("CATCH", function(catch)
         end
     end)
     Refresh()
-    Celebrate(rare)
+    Celebrate(this)
 end)
 
 for _, message in ipairs({

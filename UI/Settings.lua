@@ -326,6 +326,90 @@ local function AddSoundOptions()
     )
 end
 
+-- What "worth a lot" can be set to: a slider over these steps rather than
+-- every copper between, finer at the cheap end where it matters.
+local WORTH_STEPS = {
+    1000,
+    2000,
+    5000,
+    10000,
+    20000,
+    30000,
+    50000,
+    100000,
+    150000,
+    200000,
+    300000,
+    400000,
+    500000,
+}
+
+--- The step nearest a threshold, so one set some other way still lands on
+--- the slider.
+local function NearestStep(copper)
+    local best, bestGap = 1, math.huge
+    for index, step in ipairs(WORTH_STEPS) do
+        local gap = math.abs(step - (copper or 0))
+        if gap < bestGap then
+            best, bestGap = index, gap
+        end
+    end
+    return best
+end
+
+local function AddCatchOptions()
+    AddHeader("Catches")
+
+    AddCheckbox(
+        "specialEffects",
+        "Make a fuss of special catches",
+        "A unique find (something Creel didn't know comes off a line) or anything epic "
+            .. "or better gets the loot toast's grander art, a burst of light and the "
+            .. "game's epic-loot sound on the catch card."
+    )
+
+    -- The sound's switch and its threshold share a row, as the splash
+    -- boost does. The threshold is saved in copper; the slider moves
+    -- through WORTH_STEPS.
+    local sound = Register(
+        "valuableSound",
+        Settings.VarType.Boolean,
+        "Auction house sound for a valuable catch"
+    )
+    local worth = Settings.RegisterProxySetting(
+        category,
+        PREFIX .. "valuableStep",
+        Settings.VarType.Number,
+        "Worth at least",
+        NearestStep(ns.DEFAULT_SETTINGS.valuableCopper),
+        function()
+            return NearestStep(ns.settings.valuableCopper)
+        end,
+        function(value)
+            ns.settings.valuableCopper = WORTH_STEPS[math.floor(value + 0.5)]
+                or ns.DEFAULT_SETTINGS.valuableCopper
+        end
+    )
+    OnChange(PREFIX .. "valuableStep", Changed)
+    table.insert(registered, worth)
+
+    layout:AddInitializer(
+        CreateSettingsCheckboxSliderInitializer(
+            sound,
+            "Auction house sound for a valuable catch",
+            "When a catch is worth at least this much (one of it, at auction, or at a "
+                .. "vendor where there's no auction price), the auction house's sound plays "
+                .. "and the card shows its worth in gold.",
+            worth,
+            SliderOptions(1, #WORTH_STEPS, 1, function(value)
+                return ns.Money(WORTH_STEPS[math.floor(value + 0.5)])
+            end),
+            "Worth at least",
+            "What one of a catch has to be worth to count as valuable."
+        )
+    )
+end
+
 local function AddBookOptions()
     AddHeader("The Fishing Book")
 
@@ -414,6 +498,7 @@ ns.OnEvent("PLAYER_LOGIN", function()
     AddCastingOptions()
     AddPanelOptions()
     AddSoundOptions()
+    AddCatchOptions()
     AddBookOptions()
 
     Settings.RegisterAddOnCategory(category)
