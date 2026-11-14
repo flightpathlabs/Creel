@@ -53,9 +53,39 @@ local function CheckPole()
     end
 end
 
+-- The spell that casts a line. A profession's part of the spellbook can
+-- hold more than one spell, and on this client one of Fishing's opens the
+-- Professions window instead of casting (Blizzard_ProfessionsBook/Camelot
+-- shows up to two). So: a Classic Fishing rank the player knows, if any,
+-- since those are certainly the cast; otherwise the profession's spell
+-- that isn't tied to a profession window. Better nothing than a key that
+-- opens a window.
+local function CastSpell(spellOffset, numSpells)
+    for index = #FALLBACK_SPELLS, 1, -1 do
+        if C_SpellBook.IsSpellKnown(FALLBACK_SPELLS[index]) then
+            return FALLBACK_SPELLS[index]
+        end
+    end
+    if not spellOffset then
+        return nil
+    end
+    local bank = Enum.SpellBookSpellBank.Player
+    for index = spellOffset + 1, spellOffset + (numSpells or 0) do
+        local info = C_SpellBook.GetSpellBookItemInfo(index, bank)
+        if
+            info
+            and info.spellID
+            and not info.isPassive
+            and not C_SpellBook.GetSpellBookItemTradeSkillLink(index, bank)
+        then
+            return info.spellID
+        end
+    end
+    return nil
+end
+
 -- On Forever, GetProfessions() hands back the fishing index fourth, after
--- first aid (Blizzard_ProfessionsBook/Camelot). The profession's first
--- spell is the Fishing spell at the player's rank.
+-- first aid (Blizzard_ProfessionsBook/Camelot).
 local function ReadProfession()
     local fishing = select(4, GetProfessions())
     if not fishing then
@@ -68,26 +98,13 @@ local function ReadProfession()
         return
     end
 
-    local _, _, rank, maxRank, _, spellOffset, _, modifier = GetProfessionInfo(fishing)
+    local _, _, rank, maxRank, numSpells, spellOffset, _, modifier = GetProfessionInfo(fishing)
     local changed = rank ~= State.rank
         or maxRank ~= State.maxRank
         or (modifier or 0) ~= State.modifier
     State.rank, State.maxRank, State.modifier = rank, maxRank, modifier or 0
 
-    local spellID
-    if spellOffset then
-        local info =
-            C_SpellBook.GetSpellBookItemInfo(spellOffset + 1, Enum.SpellBookSpellBank.Player)
-        spellID = info and info.spellID
-    end
-    if not spellID then
-        for index = #FALLBACK_SPELLS, 1, -1 do
-            if C_SpellBook.IsSpellKnown(FALLBACK_SPELLS[index]) then
-                spellID = FALLBACK_SPELLS[index]
-                break
-            end
-        end
-    end
+    local spellID = CastSpell(spellOffset, numSpells)
     if spellID ~= State.spellID then
         State.spellID = spellID
         ns.Send("SPELL_CHANGED", spellID)
