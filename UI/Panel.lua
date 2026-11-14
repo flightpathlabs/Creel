@@ -716,6 +716,34 @@ local function UpdateSpot()
     end
 end
 
+-- The spot line opens the book's Next page, which says more than the
+-- line's hint has room for. The text sits on a button of its own so it
+-- can be clicked, and the panel still drags from it.
+local function CreateSpotLine(body)
+    local line = CreateFrame("Button", nil, body)
+    line:SetSize(INNER, LINE_HEIGHT)
+
+    panel.spot = Kit.Text(line, "GameFontHighlightSmall")
+    panel.spot:SetWidth(INNER)
+    panel.spot:SetPoint("LEFT")
+
+    line:SetScript("OnClick", function()
+        OpenBook("next")
+    end)
+    line:SetScript("OnEnter", function(self)
+        SetCursor("INTERACT_CURSOR")
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Click to see what's next for your fishing.", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    line:SetScript("OnLeave", function()
+        ResetCursor()
+        GameTooltip_Hide()
+    end)
+    PassDragsOn(line)
+    panel.spotLine = line
+end
+
 -- The catch card ----------------------------------------------------------------
 
 local function ValuesText(itemID)
@@ -1090,9 +1118,9 @@ local function LayOutBody()
     local spot = SpotText()
     panel.spot:SetText(spot)
     if spot ~= "" then
-        Put(panel.spot, LINE_HEIGHT, LINE_GAP)
+        Put(panel.spotLine, LINE_HEIGHT, LINE_GAP)
     else
-        panel.spot:Hide()
+        panel.spotLine:Hide()
     end
 
     -- The catch card, and its line of trivia when there is one.
@@ -1309,8 +1337,7 @@ local function Create()
 
     panel.trip = Kit.Text(body, "GameFontHighlightSmall")
     panel.trip:SetWidth(INNER)
-    panel.spot = Kit.Text(body, "GameFontHighlightSmall")
-    panel.spot:SetWidth(INNER)
+    CreateSpotLine(body)
 
     CreateCard(body)
 

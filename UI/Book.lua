@@ -1,16 +1,17 @@
 local _, ns = ...
 
--- The Fishing Book: a window in the game's own style with four tabs along
+-- The Fishing Book: a window in the game's own style with five tabs along
 -- the bottom, the way the game's journals have them.
 --
 --   Collection  everything that comes up on a line, caught ones in colour
 --   Places      the spots fished, grouped by zone
 --   Trips       past trips, newest first, and a few records
 --   Earnings    what fishing has made, as far as the game lets us see
+--   Next        the next rank and who teaches it, and what's worth doing
 --
 -- Each tab is built by its own file and knows how to redraw itself. This
 -- file owns the frame and which tab is showing, and keeps the small pieces
--- all four tabs share in ns.BookKit: item names and colours, the item slot,
+-- the tabs share in ns.BookKit: item names and colours, the item slot,
 -- dates, shares, a scrolling page.
 
 local Kit = ns.Kit
@@ -485,6 +486,12 @@ local TABS = {
         blurb = "What fishing has made you, as far as the game lets us see.",
         module = "BookEarnings",
     },
+    {
+        key = "next",
+        label = "Next",
+        blurb = "Where your fishing goes from here, and what's worth doing on the way.",
+        module = "BookNext",
+    },
 }
 
 local TAB_INDEX = {}
@@ -629,10 +636,11 @@ local function Create()
 end
 
 --- Opens the book, building it the first time.
----@param tab string|nil  "collection", "places", "trips" or "earnings";
----                       the tab it was last on when not given
+---@param tab string|nil  "collection", "places", "trips", "earnings" or
+---                       "next"; the tab it was last on when not given
 ---@param target any  what to show on that tab: an item ID on Collection,
----                   a spot ID on Places, a trip's startAt on Trips
+---                   a spot ID on Places, a trip's startAt on Trips.
+---                   Earnings and Next take none
 ---@return boolean opened  false before the saved data has loaded
 function BookWindow.Open(tab, target)
     if not ns.db then

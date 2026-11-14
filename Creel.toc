@@ -17,7 +17,9 @@ Core\CVars.lua
 Data\Catches.lua
 Data\Lures.lua
 Data\Uses.lua
+Data\Shop.lua
 Data\Tips.lua
+Data\Progression.lua
 
 Fishing\State.lua
 Fishing\Spots.lua
@@ -35,6 +37,7 @@ UI\BookCollection.lua
 UI\BookPlaces.lua
 UI\BookTrips.lua
 UI\BookEarnings.lua
+UI\BookNext.lua
 UI\MapPins.lua
 UI\Setup.lua
 UI\Settings.lua
