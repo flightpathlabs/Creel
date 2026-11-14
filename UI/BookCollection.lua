@@ -234,10 +234,12 @@ end
 
 --- One row of "Turns into": the product's icon, its name and the skill on
 --- the first line with its value at the right; how many go in, whether
---- it's worth it, and whether Forever added it on the second.
+--- it's worth it, and whether Forever added it on the second. Clicking it
+--- opens the recipe card, with every reagent and what it all costs.
 local function CreateUseRow(parent)
-    local row = CreateFrame("Frame", nil, parent)
+    local row = CreateFrame("Button", nil, parent)
     row:EnableMouse(true)
+    Kit.DressRow(row)
 
     row.icon = Kit.Icon(row, USE_ICON)
     row.icon:SetPoint("TOPLEFT")
@@ -272,14 +274,26 @@ local function CreateUseRow(parent)
                 true
             )
         end
+        GameTooltip:AddLine(
+            "Click for how to make it and what it costs.",
+            Kit.MUTED[1],
+            Kit.MUTED[2],
+            Kit.MUTED[3]
+        )
         GameTooltip:Show()
     end)
     row:SetScript("OnLeave", GameTooltip_Hide)
+    row:SetScript("OnClick", function(self)
+        if ns.RecipeCard then
+            ns.RecipeCard.Show(self.fromID, self.use, self)
+        end
+    end)
     return row
 end
 
 local function FillUseRow(row, fromID, use, indent)
     row.use = use
+    row.fromID = fromID
     row.icon:ClearAllPoints()
     row.icon:SetPoint("TOPLEFT", indent, 0)
     Kit.SetSpellIcon(row.icon, BookKit.Icon(use.makes))
@@ -379,8 +393,12 @@ local function CreateCard(window)
 
     -- A click anywhere else puts the card away. A click on the icon it
     -- belongs to is left to that icon, which closes it as a toggle.
+    -- A click on the recipe card opened from this one counts as inside it.
     card:SetScript("OnEvent", function(self)
         if self:IsMouseOver() or (self.owner and self.owner:IsMouseOver()) then
+            return
+        end
+        if ns.RecipeCard and ns.RecipeCard.IsMouseOver() then
             return
         end
         self:Hide()
@@ -389,6 +407,9 @@ local function CreateCard(window)
         self:RegisterEvent("GLOBAL_MOUSE_DOWN")
     end)
     card:SetScript("OnHide", function(self)
+        if ns.RecipeCard then
+            ns.RecipeCard.HideFrom(self)
+        end
         self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
         self.owner = nil
         self.itemID = nil

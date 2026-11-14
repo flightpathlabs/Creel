@@ -64,6 +64,8 @@ read_globals = {
 
     -- Blizzard's shared Lua helpers
     "BreakUpLargeNumbers",
+    "ChatEdit_InsertLink",
+    "ChatFrameUtil",
     "CreateFromMixins",
     "CreateColor",
     "CreateKeyChordStringUsingMetaKeyState",
@@ -153,6 +155,7 @@ read_globals = {
     "InCombatLockdown",
     "IsFishingLoot",
     "IsInCinematicScene",
+    "IsModifiedClick",
     "IsMouseButtonDown",
     "IsShiftKeyDown",
     "ResetCursor",

@@ -272,7 +272,7 @@ local function CookingEntries(bracket)
                 else
                     text = ("Cook it from %s."):format(fish)
                 end
-                table.insert(list, { itemID = use.makes, text = text })
+                table.insert(list, { itemID = use.makes, text = text, fromID = fishID, use = use })
                 break
             end
         end
@@ -484,15 +484,34 @@ local function FillCatchStrip(strip, catches)
     strip.slots:HideRest()
 end
 
+-- A row that's a recipe opens the recipe card. Only those rows take the
+-- mouse, so only they light up under it.
+local function OpenRecipe(row)
+    if row.use and ns.RecipeCard then
+        ns.RecipeCard.Show(row.fromID, row.use, row)
+    end
+end
+
+local CLICK_RECIPE = "Click for how to make it and what it costs."
+
 local function CreateWorthRow(parent)
-    local row = CreateFrame("Frame", nil, parent)
+    local row = CreateFrame("Button", nil, parent)
+    Kit.DressRow(row)
+    row:SetScript("OnEnter", function(self)
+        BookKit.ItemTooltip(self, self.itemID, CLICK_RECIPE)
+    end)
+    row:SetScript("OnLeave", GameTooltip_Hide)
+    row:SetScript("OnClick", OpenRecipe)
 
     row.slot = BookKit.Slot(row, ICON)
     row.slot:SetPoint("TOPLEFT")
     row.slot:SetScript("OnEnter", function(self)
-        BookKit.ItemTooltip(self, self.itemID)
+        BookKit.ItemTooltip(self, self.itemID, row.use and CLICK_RECIPE or nil)
     end)
     row.slot:SetScript("OnLeave", GameTooltip_Hide)
+    row.slot:SetScript("OnClick", function()
+        OpenRecipe(row)
+    end)
 
     row.title = Kit.Text(row, "GameFontHighlight")
     row.title:SetPoint("TOPLEFT", row.slot, "TOPRIGHT", ICON_GAP, -1)
@@ -505,6 +524,10 @@ end
 
 local function FillWorthRow(row, width, entry)
     BookKit.FillSlot(row.slot, entry.itemID, nil, true)
+    row.itemID = entry.itemID
+    row.fromID = entry.fromID
+    row.use = entry.use
+    row:EnableMouse(entry.use ~= nil)
 
     local title = entry.title or BookKit.ColoredName(entry.itemID)
     if entry.where then
@@ -795,6 +818,13 @@ function BookNext.Create(parent)
     end)
     worth.nothing = MutedParagraph(worth)
     tab.worth = worth
+
+    -- A recipe card opened from this page goes when the page does.
+    tab:SetScript("OnHide", function(self)
+        if ns.RecipeCard then
+            ns.RecipeCard.HideFrom(self)
+        end
+    end)
 
     tab.Refresh = Refresh
     return tab

@@ -33,6 +33,7 @@ UI\Kit.lua
 UI\Tooltip.lua
 UI\Panel.lua
 UI\Book.lua
+UI\RecipeCard.lua
 UI\BookCollection.lua
 UI\BookPlaces.lua
 UI\BookTrips.lua
