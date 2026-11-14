@@ -30,15 +30,18 @@ local function Name(itemID)
     return name
 end
 
--- The worth of one: auction if known, vendor otherwise.
-local function Worth(itemID)
-    local auction = ns.Values.Auction(itemID)
-    return auction or ns.Values.Vendor(itemID)
+-- "at Cooking 175", where a recipe item says so; trainers keep their
+-- levels on the server, so those recipes just name the profession.
+local function AtSkill(profession, use)
+    if use.learn then
+        return ("%s %d"):format(profession, use.learn)
+    end
+    return profession .. ", from a trainer"
 end
 
--- "Cooks into Rockscale Cod at Cooking 175. Sells for about 9s cooked
--- against 6s raw." The comparison only appears when both prices are known
--- and they differ enough to be worth saying.
+-- "Cooks into Rockscale Cod (Cooking 175). Worth about 9s made, against 6s
+-- for what goes in." The comparison is the recipe card's sum, and only
+-- appears when every part has a price and the two differ enough to say.
 local function FromUse(itemID, use)
     local makes = Name(use.makes)
     if not makes then
@@ -48,27 +51,25 @@ local function FromUse(itemID, use)
     local text
     if (use.needs or 1) > 1 then
         local count = NUMBER_WORDS[use.needs] or tostring(use.needs)
-        text = ("%s make %s %s (%s %d)."):format(
+        text = ("%s make %s %s (%s)."):format(
             count,
             use.count > 1 and use.count or "a",
             makes,
-            profession,
-            use.learn or use.yellow or 1
+            AtSkill(profession, use)
         )
     elseif use.profession == "cooking" then
-        text = ("Cooks into %s at Cooking %d."):format(makes, use.learn or use.yellow or 1)
+        text = ("Cooks into %s (%s)."):format(makes, AtSkill(profession, use))
     else
-        text = ("%s turns it into %s (%d)."):format(profession, makes, use.learn or use.yellow or 1)
+        text = ("%s turns it into %s (%s)."):format(profession, makes, AtSkill(profession, use))
     end
 
-    local raw = Worth(itemID)
-    local made = Worth(use.makes)
-    if raw and made and raw > 0 then
-        local cooked = made * (use.count or 1) / (use.needs or 1)
-        if math.abs(cooked - raw) / raw >= 0.15 then
-            text = text
-                .. (" Worth about %s made, against %s raw."):format(ns.Money(cooked), ns.Money(raw))
-        end
+    local cost, made, complete = ns.Values.RecipeWorth(itemID, use)
+    if complete and made and cost > 0 and math.abs(made - cost) / cost >= 0.15 then
+        text = text
+            .. (" Worth about %s made, against %s for what goes in."):format(
+                ns.Money(made),
+                ns.Money(cost)
+            )
     end
     if use.forever then
         text = text .. " A recipe new to Forever."

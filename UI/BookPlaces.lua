@@ -45,16 +45,25 @@ local function SpotLines(spot)
     end
     table.insert(first, BookKit.Plural(spot.caught, "catch", "catches"))
 
-    local second = ""
+    local second = {}
     if spot.lowestSkill then
-        second = ("Fished from skill %d"):format(spot.lowestSkill)
+        table.insert(second, ("Fished from skill %d"):format(spot.lowestSkill))
+    end
+    if spot.needsSkill then
+        table.insert(second, Kit.Colored(("needs Fishing %d"):format(spot.needsSkill), Kit.GOLD))
     end
     if spot.getawaySkill then
-        local warning = ("fish got away at %d"):format(spot.getawaySkill)
-        second = second ~= "" and (second .. " · " .. Kit.Colored(warning, Kit.GOLD))
-            or Kit.Colored("Fish got away at skill " .. spot.getawaySkill, Kit.GOLD)
+        table.insert(
+            second,
+            Kit.Colored(("fish got away at %d"):format(spot.getawaySkill), Kit.GOLD)
+        )
     end
-    return table.concat(first, " · "), second
+    local line = table.concat(second, " · ")
+    -- The line starts with a capital whichever part comes first.
+    line = line:gsub("^(|c%x%x%x%x%x%x%x%x)(%l)", function(color, letter)
+        return color .. letter:upper()
+    end)
+    return table.concat(first, " · "), line
 end
 
 -- A row --------------------------------------------------------------------------
@@ -141,15 +150,19 @@ end
 local function Gather(book)
     local zones, byName = {}, {}
     for spotID, spot in pairs(book.spots) do
-        local name = (spot.zone and spot.zone ~= "") and spot.zone or "Unknown waters"
-        local zone = byName[name]
-        if not zone then
-            zone = { name = name, spots = {}, caught = 0 }
-            byName[name] = zone
-            table.insert(zones, zone)
+        -- Water where something got away but nothing's been caught yet
+        -- isn't a place to list.
+        if (spot.caught or 0) > 0 then
+            local name = (spot.zone and spot.zone ~= "") and spot.zone or "Unknown waters"
+            local zone = byName[name]
+            if not zone then
+                zone = { name = name, spots = {}, caught = 0 }
+                byName[name] = zone
+                table.insert(zones, zone)
+            end
+            table.insert(zone.spots, { id = spotID, spot = spot })
+            zone.caught = zone.caught + spot.caught
         end
-        table.insert(zone.spots, { id = spotID, spot = spot })
-        zone.caught = zone.caught + (spot.caught or 0)
     end
     table.sort(zones, function(a, b)
         return a.name < b.name

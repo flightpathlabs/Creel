@@ -12,7 +12,11 @@ local _, ns = ...
 -- A spot looks like:
 --   { continent, x, y, mapID, mapX, mapY, zone, subzones = { name -> n },
 --     catches = { itemID -> n }, caught, seconds, lowestSkill,
---     getawaySkill, firstAt, lastAt }
+--     getawaySkill, needsSkill, firstAt, lastAt }
+--
+-- A fish getting away, or the game saying the water needs more skill,
+-- starts a spot too, so new water remembers it. Such a spot has nothing
+-- caught yet; lists of places leave it out until it has.
 
 local Spots = {}
 ns.Spots = Spots
@@ -164,6 +168,41 @@ local function MergeNeighbours(book, id)
     end
 end
 
+-- A new spot where the player stands, with nothing caught yet.
+local function NewSpot(book, here, now)
+    local id = book.nextSpot
+    book.nextSpot = id + 1
+    local spot = {
+        continent = here.continent,
+        x = here.x,
+        y = here.y,
+        mapID = here.mapID,
+        mapX = here.mapX,
+        mapY = here.mapY,
+        zone = here.zone,
+        subzones = {},
+        catches = {},
+        caught = 0,
+        seconds = 0,
+        firstAt = now,
+    }
+    book.spots[id] = spot
+    return id, spot
+end
+
+-- The spot the player is at, made if there isn't one yet.
+local function SpotHere()
+    local here = Spots.Here()
+    if not here then
+        return nil
+    end
+    local id, spot = Spots.Current()
+    if not spot then
+        id, spot = NewSpot(ns.Book(), here, time())
+    end
+    return id, spot
+end
+
 --- Files a catch at the player's position.
 ---@param itemID number
 ---@param count number
@@ -178,23 +217,7 @@ function Spots.Record(itemID, count)
     local now = time()
 
     if not spot then
-        id = book.nextSpot
-        book.nextSpot = id + 1
-        spot = {
-            continent = here.continent,
-            x = here.x,
-            y = here.y,
-            mapID = here.mapID,
-            mapX = here.mapX,
-            mapY = here.mapY,
-            zone = here.zone,
-            subzones = {},
-            catches = {},
-            caught = 0,
-            seconds = 0,
-            firstAt = now,
-        }
-        book.spots[id] = spot
+        id, spot = NewSpot(book, here, now)
     else
         -- Move the centre a step toward this catch.
         local weight = spot.caught + count
@@ -222,9 +245,12 @@ end
 
 --- Notes a fish that got away at the player's position.
 function Spots.RecordGetaway()
-    local _, spot = Spots.Current()
     local skill = ns.State.EffectiveSkill()
-    if spot and skill and (not spot.getawaySkill or skill > spot.getawaySkill) then
+    if not skill then
+        return
+    end
+    local _, spot = SpotHere()
+    if spot and (not spot.getawaySkill or skill > spot.getawaySkill) then
         spot.getawaySkill = skill
     end
 end
@@ -232,7 +258,7 @@ end
 --- Notes the skill the game said this water needs.
 ---@param skill number
 function Spots.RecordNeeded(skill)
-    local _, spot = Spots.Current()
+    local _, spot = SpotHere()
     if spot and (not spot.needsSkill or skill > spot.needsSkill) then
         spot.needsSkill = skill
     end
@@ -244,17 +270,19 @@ local SURE_AFTER = 10
 --- How the player's skill compares with what this water has shown so far.
 ---@return string verdict  "safe", "risky" or "new"
 ---@return table|nil spot
+---@return string|nil reason  for "risky": "needs" when the game said the
+---                           water needs more skill, "getaway" otherwise
 function Spots.Verdict()
     local _, spot = Spots.Current()
     local skill = ns.State.EffectiveSkill()
     if not spot or not skill then
         return "new", spot
     end
-    if spot.getawaySkill and skill <= spot.getawaySkill then
-        return "risky", spot
-    end
     if spot.needsSkill and skill < spot.needsSkill then
-        return "risky", spot
+        return "risky", spot, "needs"
+    end
+    if spot.getawaySkill and skill <= spot.getawaySkill then
+        return "risky", spot, "getaway"
     end
     if spot.caught >= SURE_AFTER then
         return "safe", spot

@@ -81,6 +81,7 @@ read_globals = {
     "GameTooltip_SetTitle",
     "GetBindingName",
     "GetConvertedKeyOrButton",
+    "HideUIPanel",
     "IsKeyPressIgnoredForBinding",
     "Item",
     "MapCanvasDataProviderMixin",

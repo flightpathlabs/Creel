@@ -67,15 +67,16 @@ local function Hints(itemID)
     if not entry then
         return hints
     end
+    -- These are the original game's rules; Forever may differ.
     if entry.time == "night" then
-        table.insert(hints, "Bites at night.")
+        table.insert(hints, "In the original game it bit only at night.")
     elseif entry.time == "day" then
-        table.insert(hints, "Bites by day.")
+        table.insert(hints, "In the original game it bit only by day.")
     end
     if entry.season == "summer" then
-        table.insert(hints, "Comes in summer.")
+        table.insert(hints, "In the original game it came in summer.")
     elseif entry.season == "winter" then
-        table.insert(hints, "Comes in winter.")
+        table.insert(hints, "In the original game it came in winter.")
     end
     if entry.kind == "event" then
         table.insert(hints, "Only while the Stranglethorn fishing contest is on.")
@@ -207,17 +208,14 @@ local function Lore(itemID)
     return lines
 end
 
---- Whether a recipe's result is worth more than what goes into it, at
---- today's prices, as a short coloured note. Other reagents aren't counted,
---- which the row's tooltip says.
+--- Whether a recipe's result is worth more than everything that goes into
+--- it, at today's prices, as a short coloured note: the same sum as the
+--- recipe card. Nothing when a part has no price yet.
 local function Verdict(fromID, use)
-    local raw = BookKit.Worth(fromID)
-    local made = BookKit.Worth(use.makes)
-    if not raw or not made or raw <= 0 then
+    local rawTotal, madeTotal, complete = ns.Values.RecipeWorth(fromID, use)
+    if not complete or not madeTotal or rawTotal <= 0 then
         return nil
     end
-    local rawTotal = raw * (use.needs or 1)
-    local madeTotal = made * (use.count or 1)
     local word = use.profession == "cooking" and "cooked" or "made"
     if madeTotal > rawTotal * (1 + WORTH_MARGIN) then
         return Kit.Colored("worth more " .. word, Kit.GOOD)
@@ -266,13 +264,6 @@ local function CreateUseRow(parent)
         if #others > 0 then
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Also takes " .. table.concat(others, ", ") .. ".", 1, 1, 1, true)
-            GameTooltip:AddLine(
-                "Those aren't counted in whether it's worth making.",
-                Kit.MUTED[1],
-                Kit.MUTED[2],
-                Kit.MUTED[3],
-                true
-            )
         end
         GameTooltip:AddLine(
             "Click for how to make it and what it costs.",
@@ -299,10 +290,13 @@ local function FillUseRow(row, fromID, use, indent)
     Kit.SetSpellIcon(row.icon, BookKit.Icon(use.makes))
 
     local profession = PROFESSION_WORDS[use.profession] or use.profession or ""
-    local skill = use.learn or use.yellow
+    -- Only a recipe item says the skill it's learned at; trainers keep
+    -- theirs on the server.
     local label = BookKit.ColoredName(use.makes)
-    if skill then
-        label = label .. Kit.Colored((" (%s %d)"):format(profession, skill), Kit.MUTED)
+    if use.learn then
+        label = label .. Kit.Colored((" (%s %d)"):format(profession, use.learn), Kit.MUTED)
+    else
+        label = label .. Kit.Colored((" (%s trainer)"):format(profession), Kit.MUTED)
     end
     row.name:SetText(label)
 

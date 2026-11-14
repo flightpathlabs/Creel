@@ -67,6 +67,90 @@ function Values.Of(itemID)
     return Values.Vendor(itemID), (Values.Auction(itemID))
 end
 
+-- Recipes -----------------------------------------------------------------
+
+-- The auction house keeps this share of a sale.
+local AUCTION_CUT = 0.05
+
+--- What one of a reagent costs and where that price comes from: a vendor
+--- where vendors sell it, otherwise the auction house. The catch itself,
+--- which few people buy, falls back to what a vendor would pay for it:
+--- what the player gives up by cooking it rather than selling it.
+---@param isCatch boolean  the item the recipe was listed under
+---@return number|nil copper, string|nil source
+function Values.ReagentPrice(itemID, isCatch)
+    local shop = ns.ShopPrices and ns.ShopPrices[itemID]
+    if shop then
+        return shop, "from a vendor"
+    end
+    local auction = Values.Auction(itemID)
+    if auction then
+        return auction, "at auction"
+    end
+    if isCatch then
+        local vendor = Values.Vendor(itemID)
+        if vendor and vendor > 0 then
+            return vendor, "what a vendor pays"
+        end
+    end
+    return nil, nil
+end
+
+--- What one of the product brings in: at auction, less the auction
+--- house's cut, where there's a price, otherwise what a vendor pays.
+---@return number|nil copper, string|nil source
+function Values.ProductPrice(itemID)
+    local auction = Values.Auction(itemID)
+    if auction then
+        return math.floor(auction * (1 - AUCTION_CUT)), "At auction, after the auction house's cut."
+    end
+    local vendor = Values.Vendor(itemID)
+    if vendor and vendor > 0 then
+        return vendor, "What a vendor pays."
+    end
+    return nil, nil
+end
+
+--- A recipe's reagents in a fixed order: the item it was listed under
+--- first, then the rest by ID. Each is { itemID, count, source }.
+function Values.Reagents(sourceID, use)
+    local list = { { itemID = sourceID, count = use.needs or 1, source = true } }
+    local others = {}
+    for itemID, count in pairs(use.others or {}) do
+        table.insert(others, { itemID = itemID, count = count })
+    end
+    table.sort(others, function(a, b)
+        return a.itemID < b.itemID
+    end)
+    for _, other in ipairs(others) do
+        table.insert(list, other)
+    end
+    return list
+end
+
+--- What one batch of a recipe costs and brings in, at today's prices, the
+--- same sum everywhere the addon says whether something's worth making.
+---@param sourceID number  the item the recipe was listed under
+---@param use table  an entry from ns.Uses[sourceID]
+---@return number cost  what the reagents that have a price come to
+---@return number|nil sells  what the batch brings in, after any auction cut
+---@return boolean complete  every reagent has a price
+---@return string|nil missingName  the first reagent with no price
+function Values.RecipeWorth(sourceID, use)
+    local cost, complete, missingName = 0, true, nil
+    for _, reagent in ipairs(Values.Reagents(sourceID, use)) do
+        local each = Values.ReagentPrice(reagent.itemID, reagent.source)
+        if each then
+            cost = cost + each * reagent.count
+        elseif complete then
+            complete = false
+            missingName = C_Item.GetItemNameByID(reagent.itemID)
+        end
+    end
+    local each = Values.ProductPrice(use.makes)
+    return cost, each and each * (use.count or 1), complete, missingName
+end
+
 -- Earnings ----------------------------------------------------------------
 
 -- Every item whose sales count: the catches, and what they turn into.
@@ -148,9 +232,17 @@ end)
 -- the counted items' names as the client knows them.
 -- The second return is true when some names weren't loaded yet, so a
 -- miss might only mean "not yet".
--- Asked for once a session each; an ID that never loads (an item Forever
--- doesn't have) isn't asked about again on every mailbox update.
+-- Each ID is asked for once a session. An ID that will never load (an
+-- item Forever doesn't have) is set aside, so it can't keep every mail
+-- waiting for ever.
 local requested = {}
+local missing = {}
+
+ns.OnEvent("ITEM_DATA_LOAD_RESULT", function(itemID, success)
+    if not success and requested[itemID] then
+        missing[itemID] = true
+    end
+end)
 
 local function ItemByName(name)
     local unsure = false
@@ -158,10 +250,17 @@ local function ItemByName(name)
         local known = C_Item.GetItemNameByID(itemID)
         if known == name then
             return itemID
-        elseif not known and not requested[itemID] then
-            requested[itemID] = true
-            unsure = true
-            C_Item.RequestLoadItemDataByID(itemID)
+        elseif not known and not missing[itemID] then
+            if not requested[itemID] then
+                requested[itemID] = true
+                if C_Item.DoesItemExistByID(itemID) then
+                    C_Item.RequestLoadItemDataByID(itemID)
+                else
+                    missing[itemID] = true
+                end
+            end
+            -- Still loading: a miss might only mean "not yet".
+            unsure = unsure or not missing[itemID]
         end
     end
     return nil, unsure

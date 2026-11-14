@@ -352,7 +352,8 @@ local function OwnPlaces(skill)
         return list
     end
     for spotID, spot in pairs(ns.Book().spots) do
-        local safe = not spot.getawaySkill or skill > spot.getawaySkill
+        local safe = (not spot.getawaySkill or skill > spot.getawaySkill)
+            and (not spot.needsSkill or skill >= spot.needsSkill)
         if
             spot.lowestSkill
             and spot.lowestSkill <= skill

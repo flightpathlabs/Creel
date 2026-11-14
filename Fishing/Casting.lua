@@ -199,10 +199,11 @@ function Casting.KeyAction()
     return "cast"
 end
 
---- The chosen key, the way the game writes it ("F", "Shift-F").
+--- The chosen key, the way the game writes it ("F", "Shift-F"). The
+--- second key stands in when only that one is set.
 ---@return string|nil
 function Casting.KeyText()
-    local key = ns.settings.castKey
+    local key = ns.settings.castKey or ns.settings.castKey2
     return key and GetBindingText(key) or nil
 end
 

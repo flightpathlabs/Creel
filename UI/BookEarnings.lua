@@ -220,16 +220,17 @@ local function Refresh()
         inside,
         tab.lines[1],
         0,
-        "Fish sold to vendors",
+        "Catches sold to vendors",
         ns.Money(fishVendor),
-        "Counted as you sell, while the merchant's window is open. Exact.",
+        "Counted as you sell, while the merchant's window is open. Buying something back, and"
+            .. " the merchant's sell-junk button, aren't seen.",
         fishVendorItems
     )
     PlaceLine(
         inside,
         tab.lines[2],
         LINE_GAP,
-        "Fish sold at auction",
+        "Catches sold at auction",
         ns.Money(fishAuction),
         'From the "Auction successful" mail, once it\'s opened. Exact for the mail seen.',
         fishAuctionItems

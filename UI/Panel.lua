@@ -475,6 +475,8 @@ local function StatusOf()
     end
     if byKey then
         return ("Ready · press %s to cast"):format(shownKey), "ready"
+    elseif style == "key" then
+        return "Choose a key in Creel's options", "idle"
     elseif style == "double" then
         return "Double right-click to cast", "ready"
     end
@@ -693,8 +695,14 @@ local function SpotText()
     if not state.spellID then
         return ""
     end
-    local words = VERDICTS[ns.Spots.Verdict()] or VERDICTS.new
-    local text = Kit.Colored(words[1], words[2])
+    local verdict, spot, reason = ns.Spots.Verdict()
+    local text
+    if reason == "needs" then
+        text = Kit.Colored(("Needs Fishing %d here"):format(spot.needsSkill), Kit.GOLD)
+    else
+        local words = VERDICTS[verdict] or VERDICTS.new
+        text = Kit.Colored(words[1], words[2])
+    end
 
     if state.rank and state.maxRank and state.rank >= state.maxRank then
         local hint = TRAINING[state.maxRank]

@@ -179,6 +179,11 @@ local function CreatePin(map)
     pin:SetScript("OnLeave", GameTooltip_Hide)
     pin:SetScript("OnMouseUp", function(self, button)
         if button == "LeftButton" and self:IsMouseOver() then
+            -- A maximised map covers the book, so the map goes first, the
+            -- game's own way. In combat it can't, and the book opens anyway.
+            if WorldMapFrame and WorldMapFrame:IsShown() and not ns.InCombat() then
+                HideUIPanel(WorldMapFrame)
+            end
             ns.BookWindow.Open("places", self.spotID)
         end
     end)
@@ -247,7 +252,7 @@ function provider:RefreshAllData()
     end
 
     for spotID, spot in pairs(ns.Book().spots) do
-        if ns.settings.mapPins or spotID == pointedID then
+        if (spot.caught or 0) > 0 and (ns.settings.mapPins or spotID == pointedID) then
             local x, y = Position(spot, mapID)
             if x then
                 Place(map, spotID, spot, x, y, spotID == pointedID)

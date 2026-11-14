@@ -55,11 +55,13 @@ ns.Tips = {
     },
 
     [13759] = { -- Raw Nightfin Snapper
-        "Only bites in the evening and through the night, by the server's clock.",
+        "In the original game it only bit in the evening and through the night, by the"
+            .. " server's clock. Forever may keep different hours.",
         "Nightfin Soup made from it helps mana come back, so healers tend to want it.",
     },
     [13760] = { -- Raw Sunscale Salmon
-        "The day shift: it bites while the sun is up, when the Nightfin Snapper won't.",
+        "In the original game this was the day shift: it bit while the sun was up, when the"
+            .. " Nightfin Snapper wouldn't.",
     },
 
     -- The swap dates are the original game's. Forever may run its own
@@ -69,7 +71,8 @@ ns.Tips = {
             .. " September, then gave way to the Winter Squid.",
     },
     [13755] = { -- Raw Winter Squid
-        "Arrives in about late September and stays until March, taking the Summer Bass's place.",
+        "In the original game it arrived in about late September and stayed until March,"
+            .. " taking the Summer Bass's place.",
         "Grilled Squid made from it adds Agility, which is why rogues and hunters keep an eye on"
             .. " the calendar.",
     },
@@ -153,12 +156,12 @@ ns.Tips = {
         "The heaviest of the weighed fish this era has to offer.",
     },
 
-    -- In the original game the tournament ran on Sunday afternoons. Forever
-    -- may schedule it differently, so we don't say when.
+    -- How many Tastyfish Forever asks for isn't confirmed, so no number.
     [19807] = { -- Speckled Tastyfish
-        "Only bites during the Stranglethorn Fishing Extravaganza. The first to bring forty to"
-            .. " Riggle Bassbait in Booty Bay wins.",
-        "The winner gets to choose a prize, and the Arcanite Fishing Pole is among them.",
+        "Only bites during the Stranglethorn Fishing Extravaganza. The first fishers to hand"
+            .. " in their catch in Booty Bay win prizes.",
+        "On Forever the first fifty to finish are said to get an Arcanite Fishing Pole and an"
+            .. " Extravagant Extravaganza Coin.",
         SPOILS,
     },
     [19803] = { TAGGED, SPOILS }, -- Brownell's Blue Striped Racer

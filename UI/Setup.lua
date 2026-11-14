@@ -563,6 +563,7 @@ local function UpdateTouchesPage()
     page.tips:SetChecked(draft.tips)
     page.ownBook:SetChecked(draft.ownBook)
     page.mapPins:SetChecked(draft.mapPins)
+    page.noKey:SetShown(draft.castStyle == "key" and not draft.castKey and not ns.settings.castKey2)
 end
 
 local function CreateTouchesPage(parent)
@@ -598,6 +599,17 @@ local function CreateTouchesPage(parent)
         check:SetPoint("TOPLEFT", -6, -(index - 1) * 50 + 6)
         page[row[1]] = check
     end
+
+    -- One key with no key chosen still finishes; it just says so, since
+    -- the key can be picked later just as well.
+    page.noKey = Kit.Paragraph(page, "GameFontHighlightSmall")
+    page.noKey:SetPoint("TOPLEFT", 0, -#rows * 50 - 4)
+    page.noKey:SetPoint("RIGHT")
+    page.noKey:SetText(
+        Kit.Colored("No key chosen for casting yet.", Kit.GOLD)
+            .. " Pick one on the first page, or any time later in Creel's options."
+    )
+    page.noKey:Hide()
     return page
 end
 

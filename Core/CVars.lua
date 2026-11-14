@@ -18,15 +18,19 @@ ns.CVars = CVars
 -- changes from the player's.
 local writing = false
 
+--- Writes a setting. Returns whether the game took it.
+---@return boolean
 local function Write(name, value)
     writing = true
     -- If the write fails the flag must still come down, or every change
     -- the player makes afterwards would be taken for one of ours.
-    local ok, message = pcall(C_CVar.SetCVar, name, value)
+    local ok, result = pcall(C_CVar.SetCVar, name, value)
     writing = false
     if not ok then
-        geterrorhandler()(message)
+        geterrorhandler()(result)
+        return false
     end
+    return result and true or false
 end
 
 local function Saved()
@@ -75,19 +79,12 @@ function CVars.ReleaseOne(owner, name)
     if not entry or not entry.owners[owner] then
         return
     end
-    -- The player's value goes back before the record of it is dropped, so
-    -- if writing fails the next login still knows what to restore.
-    local others = false
-    for other in pairs(entry.owners) do
-        if other ~= owner then
-            others = true
-        end
-    end
-    if not others then
-        Write(name, entry.value)
+    -- The player's value goes back before the record of it is dropped. If
+    -- the game won't take it, the record stays, owned by no one, and the
+    -- next login tries again.
+    entry.owners[owner] = nil
+    if next(entry.owners) == nil and Write(name, entry.value) then
         Saved()[name] = nil
-    else
-        entry.owners[owner] = nil
     end
 end
 
@@ -104,11 +101,15 @@ function CVars.IsHolding(owner)
 end
 
 --- Puts every held setting back, whoever holds it.
+--- Any the game won't take back are kept for the next login to retry.
 function CVars.ReleaseAll()
-    for name, entry in pairs(Saved()) do
-        Write(name, entry.value)
+    local saved = Saved()
+    for name, entry in pairs(saved) do
+        wipe(entry.owners)
+        if Write(name, entry.value) then
+            saved[name] = nil
+        end
     end
-    wipe(Saved())
 end
 
 ns.Listen("DATA_READY", function()

@@ -48,63 +48,9 @@ local shown = {}
 
 -- Prices -----------------------------------------------------------------------------
 
--- The auction house keeps this share of a sale.
-local AUCTION_CUT = 0.05
-
---- What one of a reagent costs and where that price comes from: a vendor
---- where vendors sell it, otherwise the auction house. The catch itself,
---- which few people buy, falls back to what a vendor would pay for it:
---- what the player gives up by cooking it rather than selling it.
----@param isCatch boolean  the item the recipe was listed under
----@return number|nil copper, string|nil source
-local function ReagentPrice(itemID, isCatch)
-    local shop = ns.ShopPrices and ns.ShopPrices[itemID]
-    if shop then
-        return shop, "from a vendor"
-    end
-    local auction = ns.Values.Auction(itemID)
-    if auction then
-        return auction, "at auction"
-    end
-    if isCatch then
-        local vendor = ns.Values.Vendor(itemID)
-        if vendor and vendor > 0 then
-            return vendor, "what a vendor pays"
-        end
-    end
-    return nil, nil
-end
-
---- What one of the product brings in: at auction, less the auction
---- house's cut, where there's a price, otherwise what a vendor pays.
----@return number|nil copper, string|nil source
-local function ProductPrice(itemID)
-    local auction = ns.Values.Auction(itemID)
-    if auction then
-        return math.floor(auction * (1 - AUCTION_CUT)), "At auction, after the auction house's cut."
-    end
-    local vendor = ns.Values.Vendor(itemID)
-    if vendor and vendor > 0 then
-        return vendor, "What a vendor pays."
-    end
-    return nil, nil
-end
-
--- The reagents in a fixed order: the source item first, then the rest by ID.
-local function Reagents(sourceID, use)
-    local list = { { itemID = sourceID, count = use.needs or 1, source = true } }
-    local others = {}
-    for itemID, count in pairs(use.others or {}) do
-        table.insert(others, { itemID = itemID, count = count })
-    end
-    table.sort(others, function(a, b)
-        return a.itemID < b.itemID
-    end)
-    for _, other in ipairs(others) do
-        table.insert(list, other)
-    end
-    return list
-end
+local ReagentPrice = ns.Values.ReagentPrice
+local ProductPrice = ns.Values.ProductPrice
+local Reagents = ns.Values.Reagents
 
 local function NameOrPlaceholder(itemID)
     return BookKit.Name(itemID) or "this"

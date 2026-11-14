@@ -456,9 +456,11 @@ local function FillStats(book)
             value = BreakUpLargeNumbers(totals.catches or 0),
             figures = {},
         },
+        -- At auction where anything has a price there, otherwise what a
+        -- vendor would have paid.
         {
-            label = "Worth",
-            value = ns.Money(auction),
+            label = auction > 0 and "Worth at auction" or "Worth at a vendor",
+            value = ns.Money(auction > 0 and auction or vendor),
             title = "What the trips' catches were worth",
             figures = { { "At a vendor", ns.Money(vendor) }, { "At auction", ns.Money(auction) } },
             note = ("Added up over the trips the book keeps in full, the last %d."):format(
@@ -593,7 +595,8 @@ function BookTrips.Create(parent)
 
     tab.empty = BookKit.Empty(
         tab,
-        "No trips yet. A trip starts with your first cast and ends when you put the pole away."
+        "No trips yet. A trip starts with your first cast, and ends when you put the pole away,"
+            .. " after a while with no cast, or with End trip."
     )
 
     tab.Refresh = Refresh
