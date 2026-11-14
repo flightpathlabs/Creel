@@ -502,9 +502,10 @@ function RecipeCard.IsMouseOver()
     return card ~= nil and card:IsShown() and card:IsMouseOver()
 end
 
--- Names and prices fill in as the client's item cache answers.
+-- Names and prices fill in as the client's item cache answers, through
+-- either of its two events (see the same note in Book.lua).
 local refillPending = false
-ns.OnEvent("GET_ITEM_INFO_RECEIVED", function()
+local function Refill()
     if refillPending or not (card and card:IsShown()) then
         return
     end
@@ -515,4 +516,6 @@ ns.OnEvent("GET_ITEM_INFO_RECEIVED", function()
             Fill(shown.sourceID, shown.use)
         end
     end)
-end)
+end
+ns.OnEvent("ITEM_DATA_LOAD_RESULT", Refill)
+ns.OnEvent("GET_ITEM_INFO_RECEIVED", Refill)

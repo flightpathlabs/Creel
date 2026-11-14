@@ -62,7 +62,10 @@ local function Ask(itemID)
     end
 end
 
-ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
+-- RequestLoadItemDataByID answers with ITEM_DATA_LOAD_RESULT; an item the
+-- client fetches for GetItemInfo answers with GET_ITEM_INFO_RECEIVED. Both
+-- are heard, or names asked for the first way never arrive on the page.
+local function OnItemLoaded(itemID, success)
     if asked[itemID] then
         -- An item the client says doesn't exist stays marked as asked, so
         -- a redraw doesn't ask again and again.
@@ -71,7 +74,9 @@ ns.OnEvent("GET_ITEM_INFO_RECEIVED", function(itemID, success)
         end
         ScheduleRefresh()
     end
-end)
+end
+ns.OnEvent("ITEM_DATA_LOAD_RESULT", OnItemLoaded)
+ns.OnEvent("GET_ITEM_INFO_RECEIVED", OnItemLoaded)
 
 ---@return string|nil
 function BookKit.Name(itemID)
