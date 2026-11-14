@@ -274,6 +274,22 @@ local function PlaceText(find)
     return #parts > 0 and table.concat(parts, ", ") or nil
 end
 
+--- "187 (+25 from pole, lure and gear)": the skill and what was added to
+--- it, apart. A find recorded before the two were kept apart has only the
+--- total, and says so.
+local function SkillText(find)
+    if find.rank then
+        local bonus = find.bonus or 0
+        if bonus > 0 then
+            return ("%d (+%d from pole, lure and gear)"):format(find.rank, bonus)
+        end
+        return tostring(find.rank)
+    elseif find.skill then
+        return ("%d with pole, lure and gear"):format(find.skill)
+    end
+    return nil
+end
+
 --- The report to paste into the issue form: plain text, one fact a line.
 local function ReportText(itemID)
     local book = ns.Book()
@@ -306,8 +322,9 @@ local function ReportText(itemID)
             )
         )
     end
-    if find.skill then
-        table.insert(lines, ("Fishing skill: %d"):format(find.skill))
+    local skill = SkillText(find)
+    if skill then
+        table.insert(lines, ("Fishing skill: %s"):format(skill))
     end
     if find.firstAt then
         table.insert(lines, ("First caught: %s"):format(date("%Y-%m-%d %H:%M", find.firstAt)))
@@ -355,9 +372,11 @@ local function ReadOnly(box)
 end
 
 local function CreateReport()
-    report = CreateFrame("Frame", nil, UIParent)
+    -- It belongs to the book, so it goes when the book does and never
+    -- keeps the keyboard after.
+    report = CreateFrame("Frame", nil, tab.window)
     report:SetSize(REPORT_WIDTH, REPORT_TEXT_HEIGHT + 196)
-    report:SetPoint("CENTER", 0, 60)
+    report:SetPoint("CENTER", UIParent, "CENTER", 0, 60)
     report:SetFrameStrata("DIALOG")
     report:SetToplevel(true)
     report:EnableMouse(true)
@@ -843,8 +862,9 @@ local function FillCard(itemID)
         if find.mapX and find.mapY then
             Pair("Map position", ("%.1f, %.1f"):format(find.mapX * 100, find.mapY * 100))
         end
-        if find.skill then
-            Pair("Fishing skill", tostring(find.skill))
+        local skill = SkillText(find)
+        if skill then
+            Pair("Fishing skill", skill)
         end
         if find.character then
             Pair("Caught by", BookKit.CharacterName(find.character))
@@ -857,7 +877,12 @@ local function FillCard(itemID)
 
     -- Where it's been caught best.
     local best = BestSpots(itemID, 3)
-    card.bestSpot = best[1] and best[1].spot.mapID and best[1].spot.mapX and best[1].spotID or nil
+    local bestSpot = best[1] and best[1].spot
+    card.bestSpot = bestSpot
+            and bestSpot.mapX
+            and BookKit.MapKnown(bestSpot.mapID)
+            and best[1].spotID
+        or nil
     if #best > 0 then
         Heading("Best spots")
         for index, entry in ipairs(best) do
@@ -1132,6 +1157,9 @@ function BookCollection.Create(parent, window)
     tab:SetScript("OnHide", function()
         if card then
             card:Hide()
+        end
+        if report then
+            report:Hide()
         end
     end)
 

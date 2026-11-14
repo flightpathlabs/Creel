@@ -874,6 +874,15 @@ local function ShapeCard(big)
     for _, text in ipairs({ card.name, card.detail, card.values }) do
         text:SetWidth(card.textWidth)
     end
+
+    -- A big moment's light is sized for the big card; if the card goes
+    -- back to the small shape before it's done, it stops there.
+    if not big then
+        for _, piece in ipairs({ card.burst, card.borderGlow, card.sheen }) do
+            piece.anim:Stop()
+            piece:Hide()
+        end
+    end
 end
 
 local function FillPlaceholder()
@@ -954,10 +963,10 @@ end
 -- card and the epic-loot sound, all done inside a second and a half. A
 -- catch worth a lot gets the auction house's sound and a gold glint on
 -- its worth. Never both sounds: the big moment wins.
+--
+-- The sound plays even when the panel can't be seen (hidden by its
+-- setting, or the whole interface by Alt+Z); only the light needs it.
 local function Celebrate(this)
-    if not panel or not panel:IsVisible() then
-        return
-    end
     local big = IsBig(this)
     if big then
         local quality = this.quality or C_Item.GetItemQualityByID(this.itemID)
@@ -970,7 +979,7 @@ local function Celebrate(this)
         PlayKit("AUCTION_WINDOW_OPEN")
     end
 
-    if ns.settings.panelCollapsed then
+    if not panel or not panel:IsVisible() or ns.settings.panelCollapsed then
         return
     end
     local card = panel.card
@@ -1739,7 +1748,8 @@ ns.Listen("TRIP_ENDED", function(trip)
     Panel.UpdateVisibility()
 end)
 
-ns.Listen("CATCH", function(catch)
+-- What the card knows about one catch.
+local function CardEntry(catch)
     local trip = ns.State.trip
     local spot = catch.spotID and ns.Book().spots[catch.spotID]
     local rare
@@ -1752,8 +1762,7 @@ ns.Listen("CATCH", function(catch)
     then
         rare = math.floor(1 / catch.share + 0.5)
     end
-
-    local this = {
+    return {
         itemID = catch.itemID,
         first = catch.first,
         count = trip and trip.catches[catch.itemID],
@@ -1763,11 +1772,40 @@ ns.Listen("CATCH", function(catch)
         special = catch.special,
         valuable = catch.valuable,
     }
+end
+
+-- How much a catch is worth showing: a big moment, then something worth a
+-- lot, then something rare for the spot, then the rest.
+local function Remarkable(this)
+    if IsBig(this) then
+        return 4
+    elseif IsValuable(this) then
+        return 3
+    elseif this.rare then
+        return 2
+    end
+    return 1
+end
+
+-- One loot window can bring up more than one thing. The card shows the
+-- most remarkable (the last of equals, as when they came one at a time),
+-- and the window gets one moment and one sound.
+ns.Listen("CATCHES", function(catches)
+    local this
+    for _, catch in ipairs(catches) do
+        local entry = CardEntry(catch)
+        if not this or Remarkable(entry) >= Remarkable(this) then
+            this = entry
+        end
+    end
+    if not this then
+        return
+    end
     latest = this
 
     -- The tip is picked once per catch, when the item's name is known, so
     -- the lines that name what it cooks into have their words.
-    WithItem(catch.itemID, function()
+    WithItem(this.itemID, function()
         if latest == this then
             this.tip = ns.Trivia.Pick(this.itemID)
             Refresh()

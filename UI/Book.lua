@@ -250,9 +250,18 @@ local function MapName(mapID)
     return info and info.name or nil
 end
 
+--- Whether the client has a map by this ID. The guides' map IDs come from
+--- the modern game, and Forever may not have every one, so anything that
+--- would open the map on one asks first, when it's drawn.
+---@return boolean
+function BookKit.MapKnown(mapID)
+    return mapID ~= nil and C_Map.GetMapInfo(mapID) ~= nil
+end
+
 local function CanPin(mapID)
     return UiMapPoint ~= nil
         and C_Map.CanSetUserWaypointOnMap ~= nil
+        and BookKit.MapKnown(mapID)
         and C_Map.CanSetUserWaypointOnMap(mapID)
 end
 
@@ -261,6 +270,9 @@ end
 local function OpenMap(mapID)
     if ns.InCombat() then
         UIErrorsFrame:AddExternalErrorMessage(ERR_NOT_IN_COMBAT)
+        return false
+    end
+    if not BookKit.MapKnown(mapID) then
         return false
     end
     if OpenWorldMap then

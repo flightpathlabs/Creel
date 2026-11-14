@@ -11,6 +11,8 @@ local _, ns = ...
 -- Messages sent from here:
 --   CATCH (catch)   catch = { itemID, count, first, spotID, share, quality,
 --                             unique, special, valuable }
+--   CATCHES (list)  every catch from one loot window, in loot order, once
+--                   each has had its own CATCH
 --   GETAWAY ()
 --   NEXT_POINT (estimate)
 
@@ -47,10 +49,6 @@ ns.OnEvent("LOOT_READY", function()
             end
         end
     end
-end)
-
-ns.OnEvent("LOOT_CLOSED", function()
-    wipe(pending)
 end)
 
 -- Catches between skill-ups, to guess how many more the next point takes.
@@ -93,6 +91,10 @@ local function RecordFind(book, itemID, spotID)
         mapID = here.mapID,
         mapX = here.mapX,
         mapY = here.mapY,
+        -- The skill itself and what the pole, lure and gear add, apart, so a
+        -- report says which. skill is the two together, as older finds have it.
+        rank = ns.State.rank,
+        bonus = ns.State.modifier or 0,
         skill = ns.State.EffectiveSkill(),
         character = ns.CharacterKey(),
     }
@@ -112,45 +114,77 @@ local function Mark(catch)
     catch.valuable = (worth and threshold > 0 and worth >= threshold) or nil
 end
 
--- How long a catch's message waits for the client to load an item it
--- hasn't seen before. It goes out once this is up, loaded or not.
+-- How long a loot window's messages wait for the client to load an item
+-- it hasn't seen before. They go out once this is up, loaded or not.
 local LOAD_WAIT = 2
 
--- Item ID -> the sends waiting for it to load.
+-- Item ID -> what's waiting for it to load.
 local loading = {}
 
 ns.OnEvent("ITEM_DATA_LOAD_RESULT", function(itemID)
-    local sends = loading[itemID]
-    if sends then
+    local waiting = loading[itemID]
+    if waiting then
         loading[itemID] = nil
-        for _, send in ipairs(sends) do
-            send()
+        for _, callback in ipairs(waiting) do
+            callback()
         end
     end
 end)
 
--- The book is written at once; only the message waits, and only for an
--- item new to the client. Something just looted is nearly always known.
-local function SendWhenKnown(catch)
-    local sent = false
-    local function Send()
-        if sent then
-            return
+--- Calls back once every item in the list is in the client's cache, or
+--- once LOAD_WAIT is up, whichever comes first. Something just looted is
+--- nearly always there already.
+local function WhenKnown(catches, callback)
+    local called = false
+    local function Done()
+        if not called then
+            called = true
+            callback()
         end
-        sent = true
-        Mark(catch)
-        ns.Send("CATCH", catch)
     end
 
-    local itemID = catch.itemID
-    if C_Item.IsItemDataCachedByID(itemID) or not C_Item.DoesItemExistByID(itemID) then
-        Send()
+    local unknown = 0
+    local function OneLoaded()
+        unknown = unknown - 1
+        if unknown == 0 then
+            Done()
+        end
+    end
+    for _, catch in ipairs(catches) do
+        local itemID = catch.itemID
+        if not C_Item.IsItemDataCachedByID(itemID) and C_Item.DoesItemExistByID(itemID) then
+            unknown = unknown + 1
+            loading[itemID] = loading[itemID] or {}
+            table.insert(loading[itemID], OneLoaded)
+            C_Item.RequestLoadItemDataByID(itemID)
+        end
+    end
+    if unknown == 0 then
+        Done()
+    else
+        C_Timer.After(LOAD_WAIT, Done)
+    end
+end
+
+-- The catches from the loot window that's open. The book takes each one
+-- the moment its slot clears; the messages wait for the whole window, so
+-- the panel can pick the one most worth showing and play one sound for
+-- the lot.
+local window = {}
+
+local function SendWindow()
+    if #window == 0 then
         return
     end
-    loading[itemID] = loading[itemID] or {}
-    table.insert(loading[itemID], Send)
-    C_Item.RequestLoadItemDataByID(itemID)
-    C_Timer.After(LOAD_WAIT, Send)
+    local catches = window
+    window = {}
+    WhenKnown(catches, function()
+        for _, catch in ipairs(catches) do
+            Mark(catch)
+            ns.Send("CATCH", catch)
+        end
+        ns.Send("CATCHES", catches)
+    end)
 end
 
 local function Record(itemID, count, quality)
@@ -215,7 +249,7 @@ local function Record(itemID, count, quality)
     end
 
     sinceLastPoint = sinceLastPoint + count
-    SendWhenKnown({
+    table.insert(window, {
         itemID = itemID,
         count = count,
         first = first,
@@ -230,7 +264,18 @@ ns.OnEvent("LOOT_SLOT_CLEARED", function(slot)
     if catch then
         pending[slot] = nil
         Record(catch.itemID, catch.count, catch.quality)
+        -- With auto-loot the window may stay open a moment after its last
+        -- slot clears; there's nothing more to wait for by then.
+        if next(pending) == nil then
+            C_Timer.After(0, SendWindow)
+        end
     end
+end)
+
+-- A slot still full when the window closes (bags full) wasn't caught.
+ns.OnEvent("LOOT_CLOSED", function()
+    wipe(pending)
+    SendWindow()
 end)
 
 -- "Your fish got away!" and "No fish are hooked." come through as error

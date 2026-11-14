@@ -572,14 +572,12 @@ Progression.worth = {
         kind = "lure",
         minSkill = 100,
         itemID = 6532, -- Bright Baubles
-        place = "vendor",
         text = "75 more skill for ten minutes. Try fishing supply vendors and the auction house.",
     },
     {
         kind = "lure",
         minSkill = 100,
         itemID = 6533, -- Aquadynamic Fish Attractor
-        place = "vendor",
         text = "100 more skill for five minutes. Engineers make them, so look at the auction"
             .. " house.",
     },

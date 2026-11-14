@@ -294,7 +294,10 @@ end
 function MapPins.ShowSpot(spotID)
     local spot = ns.db and ns.Book().spots[spotID]
     local map = provider:GetMap()
-    if not spot or not spot.mapID or not spot.mapX or not map or InCombatLockdown() then
+    if not spot or not spot.mapX or not BookKit.MapKnown(spot.mapID) then
+        return false
+    end
+    if not map or InCombatLockdown() then
         return false
     end
 

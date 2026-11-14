@@ -432,7 +432,7 @@ local function FillPlaceRow(row, entry)
     local zone = (spot.zone and spot.zone ~= "") and spot.zone or "Unknown waters"
     row.line:SetText(("%s · fished from skill %d"):format(zone, spot.lowestSkill))
     -- Inside an instance there's no map position, so no pin.
-    local onMap = spot.mapID ~= nil and spot.mapX ~= nil
+    local onMap = spot.mapX ~= nil and BookKit.MapKnown(spot.mapID)
     row.pin:SetShown(onMap)
     row.pin.place = onMap
             and {
@@ -488,8 +488,16 @@ local function CreateZoneList(parent)
     return list
 end
 
---- Lays the zones out within a width and sizes the list to fit.
-local function FillZoneList(list, waters, width)
+--- Lays the zones out within a width and sizes the list to fit. A zone
+--- whose map the client doesn't have is left out, since its link would go
+--- nowhere.
+local function FillZoneList(list, allWaters, width)
+    local waters = {}
+    for _, water in ipairs(allWaters) do
+        if BookKit.MapKnown(water.mapID) then
+            table.insert(waters, water)
+        end
+    end
     list.chips:Reset()
     local x, y = 0, 0
     for _, water in ipairs(waters) do
@@ -605,6 +613,9 @@ local function FillWorthRow(row, width, entry, side)
     end
 
     local place = EntryPlace(entry, side)
+    if place and not BookKit.MapKnown(place.mapID) then
+        place = nil
+    end
     row.pin.place = place
     row.pin:SetShown(place ~= nil)
 
@@ -714,7 +725,9 @@ local function FillPerson(layout, nextRank, side)
 
     local inside = Kit.Inside(layout, section)
     local person = section.person
-    person.pin.place = PlaceOf(npc)
+    local onMap = BookKit.MapKnown(npc.uiMapID)
+    person.pin.place = onMap and PlaceOf(npc) or nil
+    person.pin:SetShown(onMap)
     person.name:SetText(npc.name)
     local where = npc.place
     local distance = DistanceText(yards)

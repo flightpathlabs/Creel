@@ -140,7 +140,7 @@ local function FillRow(row, spotID, spot)
         end
     end
 
-    row.map:SetShown(spot.mapID ~= nil and spot.mapX ~= nil)
+    row.map:SetShown(spot.mapX ~= nil and BookKit.MapKnown(spot.mapID))
     row.chosen:SetShown(spotID == tab.target)
 end
 
