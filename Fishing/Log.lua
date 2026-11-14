@@ -147,9 +147,33 @@ end)
 -- "Your fish got away!" and "No fish are hooked." come through as error
 -- messages. The strings are the client's own, so this works in any
 -- language the client is in.
+-- "Requires Fishing %d" turns up when the water wants more skill than the
+-- player has. Its number is the one fact about a spot's skill the game
+-- ever states outright, so it's kept. The pattern is built from the
+-- client's own string, so it matches in any language.
+local needsPattern
+local function NeedsPattern()
+    local text = _G.SPELL_FAILED_FISHING_TOO_LOW
+    if not needsPattern and type(text) == "string" then
+        needsPattern = text:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"):gsub("%%%%d", "(%%d+)")
+    end
+    return needsPattern
+end
+
 ns.OnEvent("UI_ERROR_MESSAGE", function(_, message)
-    if message and _G.ERR_FISH_ESCAPED and message == _G.ERR_FISH_ESCAPED then
+    message = ns.Readable(message)
+    if not message then
+        return
+    end
+    if _G.ERR_FISH_ESCAPED and message == _G.ERR_FISH_ESCAPED then
         ns.Spots.RecordGetaway()
+        ns.Send("GETAWAY")
+        return
+    end
+    local pattern = NeedsPattern()
+    local needed = pattern and tonumber(message:match(pattern))
+    if needed then
+        ns.Spots.RecordNeeded(needed)
         ns.Send("GETAWAY")
     end
 end)

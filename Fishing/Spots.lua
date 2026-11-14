@@ -116,6 +116,9 @@ local function Merge(a, b)
     if b.getawaySkill and (not a.getawaySkill or b.getawaySkill > a.getawaySkill) then
         a.getawaySkill = b.getawaySkill
     end
+    if b.needsSkill and (not a.needsSkill or b.needsSkill > a.needsSkill) then
+        a.needsSkill = b.needsSkill
+    end
     a.firstAt = math.min(a.firstAt or b.firstAt, b.firstAt or a.firstAt)
     a.lastAt = math.max(a.lastAt or 0, b.lastAt or 0)
 end
@@ -226,6 +229,15 @@ function Spots.RecordGetaway()
     end
 end
 
+--- Notes the skill the game said this water needs.
+---@param skill number
+function Spots.RecordNeeded(skill)
+    local _, spot = Spots.Current()
+    if spot and (not spot.needsSkill or skill > spot.needsSkill) then
+        spot.needsSkill = skill
+    end
+end
+
 -- Enough catches at a spot to say anything about it.
 local SURE_AFTER = 10
 
@@ -239,6 +251,9 @@ function Spots.Verdict()
         return "new", spot
     end
     if spot.getawaySkill and skill <= spot.getawaySkill then
+        return "risky", spot
+    end
+    if spot.needsSkill and skill < spot.needsSkill then
         return "risky", spot
     end
     if spot.caught >= SURE_AFTER then
