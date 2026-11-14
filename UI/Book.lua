@@ -218,9 +218,14 @@ end
 function BookKit.ShowOnMap(spotID)
     if ns.MapPins and ns.MapPins.ShowSpot(spotID) then
         BookWindow.Close()
-    else
-        BookWindow.Open("places", spotID)
+        return
     end
+    -- The map can't be opened from here in combat; say so the game's way,
+    -- and show the place in the book instead.
+    if ns.InCombat() then
+        UIErrorsFrame:AddExternalErrorMessage(ERR_NOT_IN_COMBAT)
+    end
+    BookWindow.Open("places", spotID)
 end
 
 -- Pictures --------------------------------------------------------------------

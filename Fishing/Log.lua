@@ -105,7 +105,9 @@ local function Record(itemID, count)
         end
         local vendor, auction = ns.Values.Of(itemID)
         trip.vendor = trip.vendor + (vendor or 0) * count
-        trip.auction = trip.auction + (auction or vendor or 0) * count
+        -- Only real auction prices go in the auction sum; catches with no
+        -- price yet count at the vendor's rate in the vendor sum alone.
+        trip.auction = trip.auction + (auction or 0) * count
         UpdateRecords(book, trip)
     end
 

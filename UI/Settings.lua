@@ -356,7 +356,9 @@ local function AddBookOptions()
         PREFIX .. "ownBook",
         Settings.VarType.Boolean,
         "A book of its own for this character",
-        false,
+        -- No default: the Options window's Defaults button would otherwise
+        -- move the character back to the shared book without asking.
+        nil,
         function()
             return ns.Me().ownBook and true or false
         end,

@@ -362,14 +362,26 @@ function Casting.ChooseLure(choice)
     Casting.UpdateLure()
 end
 
---- Lays the lure button over a spot on the panel. The button is parented
---- to UIParent rather than the panel so the panel can still show and hide
---- in combat; it only moves or shows out of combat.
+--- Lays the lure button over a spot on the panel.
+---
+--- It isn't anchored to the panel: a protected frame anchored to another
+--- makes that one protected too, and then the panel couldn't move, fold or
+--- hide in combat. Instead it's placed against UIParent where the slot is
+--- on screen, and placed again whenever the panel says it has moved. In
+--- combat it hides itself (see the state driver above), so it never
+--- lingers where the slot used to be.
 ---@param anchor Frame
 function Casting.PlaceLureButton(anchor)
+    Casting.lureAnchor = anchor
     OutOfCombat("placeLure", function()
+        local left, bottom = anchor:GetLeft(), anchor:GetBottom()
+        if not left or not bottom then
+            return
+        end
+        local scale = anchor:GetEffectiveScale() / UIParent:GetEffectiveScale()
         lureButton:ClearAllPoints()
-        lureButton:SetAllPoints(anchor)
+        lureButton:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left * scale, bottom * scale)
+        lureButton:SetSize(anchor:GetWidth() * scale, anchor:GetHeight() * scale)
         lureButton:SetFrameStrata(anchor:GetFrameStrata())
         lureButton:SetFrameLevel(anchor:GetFrameLevel() + 5)
 
@@ -384,6 +396,13 @@ function Casting.PlaceLureButton(anchor)
         lureButton:SetScript("OnLeave", GameTooltip_Hide)
     end)
 end
+
+-- The panel may have moved during the fight.
+ns.OnEvent("PLAYER_REGEN_ENABLED", function()
+    if Casting.lureAnchor then
+        Casting.PlaceLureButton(Casting.lureAnchor)
+    end
+end)
 
 ---@param shown boolean
 function Casting.ShowLureButton(shown)

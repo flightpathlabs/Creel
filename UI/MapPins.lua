@@ -202,6 +202,10 @@ local function Place(map, spotID, spot, x, y, isPointed)
 
     pin.spotID = spotID
     pin:SetOwningMap(map)
+    -- UseFrameLevelType only records the wish; Blizzard applies it when it
+    -- acquires a pin, which ours never are. Without this the pins sit under
+    -- the explored-area overlays.
+    pin:ApplyFrameLevel()
     local size = Size(spot.caught)
     pin:SetSize(size, size)
     pin.glow:SetSize(size * GLOW_SCALE, size * GLOW_SCALE)

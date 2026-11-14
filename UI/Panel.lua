@@ -315,6 +315,10 @@ end
 -- The lure button sits over the slot while the slot can be seen.
 local function SyncLureButton()
     local shown = panel:IsShown() and not ns.settings.panelCollapsed
+    if shown then
+        -- The layout may have moved the slot.
+        ns.Casting.PlaceLureButton(panel.lure)
+    end
     ns.Casting.ShowLureButton(shown)
 end
 
@@ -829,6 +833,8 @@ local function CreateGlow(card, color, steps)
     glow:SetSize(INNER + 14, CARD_HEIGHT + 16)
     glow:SetPoint("CENTER")
     glow:SetVertexColor(unpack(color))
+    -- Dark until the animation lights it, or it flashes for a frame first.
+    glow:SetAlpha(0)
     glow:Hide()
 
     glow.anim = glow:CreateAnimationGroup()
@@ -1169,7 +1175,9 @@ end
 
 local function ApplySettings()
     local settings = ns.settings
-    if panel:GetScale() ~= (settings.panelScale or 1) then
+    -- Scales are stored as floats, so an exact comparison would never match
+    -- at anything but 1 and re-place the panel on every refresh.
+    if math.abs(panel:GetScale() - (settings.panelScale or 1)) > 0.001 then
         Place()
     end
     panel:SetAlpha(settings.panelAlpha or 1)
@@ -1284,6 +1292,7 @@ local function Create()
     panel:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         KeepPlace()
+        ns.Casting.PlaceLureButton(panel.lure)
     end)
 
     CreateHeader()
@@ -1333,8 +1342,9 @@ local function Create()
 
     CreateSoundNote()
 
-    -- The secure lure button is laid over the slot once; from then on it
-    -- follows the slot wherever the panel goes.
+    -- The secure lure button is laid over the slot here, and again each
+    -- time the panel is laid out or moved (it isn't anchored to the panel;
+    -- see Casting.PlaceLureButton).
     ns.Casting.PlaceLureButton(panel.lure)
 end
 
@@ -1388,7 +1398,9 @@ end
 --- A few breaths of light on the book button, so a new player sees where
 --- the book is. Setup calls it when it's done.
 function Panel.PulseBook()
-    if not panel then
+    -- A pulse nobody can see is no help: with the panel hidden (no pole in
+    -- hand, or the panel set to stay away) the book is found from /creel.
+    if not panel or not panel:IsVisible() then
         return
     end
     local anim = panel.header.book.pulseAnim
@@ -1408,7 +1420,13 @@ end)
 
 ns.Listen("POLE_CHANGED", Panel.UpdateVisibility)
 ns.Listen("SETTINGS_CHANGED", Panel.UpdateVisibility)
-ns.Listen("BOOK_CHANGED", Refresh)
+-- A different book (or an emptied one): what the panel was showing belongs
+-- to the old one.
+ns.Listen("BOOK_CHANGED", function()
+    latest = nil
+    lastTrip = nil
+    Refresh()
+end)
 
 ns.Listen("TRIP_STARTED", function()
     latest = nil

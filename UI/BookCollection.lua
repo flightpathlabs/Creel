@@ -395,20 +395,11 @@ local function CreateCard(window)
     end)
 end
 
--- Escape puts the card away before it closes the book, through the game's
--- own list of things Escape closes, in the addons' turn. Without that list
--- (an older client), Escape closes the book and the card goes with it.
-if RegisterGameMenuEscHandler and GameMenuEscPriority and GameMenuEscPriority.AddOn then
-    RegisterGameMenuEscHandler(GameMenuEscPriority.AddOn, function()
-        -- Visible, not just shown: a card can keep its shown flag while
-        -- the closed book hides it, and then Escape is someone else's.
-        if card and card:IsVisible() then
-            card:Hide()
-            return true
-        end
-        return false
-    end)
-end
+-- Escape closes the book, and the card with it (the book is in
+-- UISpecialFrames). The game's own list of Escape handlers isn't used:
+-- adding to it from addon code sorts Blizzard's entries from tainted code,
+-- and Escape's later steps (clearing the target, stopping a cast) would
+-- then run tainted.
 
 --- Lays out the card for one item. Every piece goes under the one before.
 local function FillCard(itemID)
@@ -488,7 +479,7 @@ local function FillCard(itemID)
 
     -- Where it's been caught best.
     local best = BestSpots(itemID, 3)
-    card.bestSpot = best[1] and best[1].spot.mapID and best[1].spotID or nil
+    card.bestSpot = best[1] and best[1].spot.mapID and best[1].spot.mapX and best[1].spotID or nil
     if #best > 0 then
         Heading("Best spots")
         for index, entry in ipairs(best) do
