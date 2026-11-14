@@ -130,6 +130,8 @@ local function Now()
     return time()
 end
 
+local tripBook
+
 local function StartTrip()
     local book = ns.Book()
     local trip = {
@@ -155,7 +157,24 @@ local function StartTrip()
     end
 
     State.trip = trip
+    -- Kept so the trip can be tidied up in the book it started in, even
+    -- after the character has switched to another.
+    tripBook = book
     ns.Send("TRIP_STARTED", trip)
+end
+
+-- A trip with no catches isn't worth a line in the book.
+local function DropIfEmpty(trip, book)
+    if trip.caught > 0 or not book then
+        return
+    end
+    for index, entry in ipairs(book.trips) do
+        if entry == trip then
+            table.remove(book.trips, index)
+            book.totals.trips = math.max(0, (book.totals.trips or 1) - 1)
+            break
+        end
+    end
 end
 
 --- Closes the open trip, if there is one.
@@ -167,18 +186,8 @@ function State.EndTrip()
     State.trip = nil
     lastCastAt = nil
     trip.endAt = Now()
-
-    -- A trip with no catches isn't worth a line in the book.
-    if trip.caught == 0 then
-        local book = ns.Book()
-        for index, entry in ipairs(book.trips) do
-            if entry == trip then
-                table.remove(book.trips, index)
-                book.totals.trips = math.max(0, (book.totals.trips or 1) - 1)
-                break
-            end
-        end
-    end
+    DropIfEmpty(trip, tripBook)
+    tripBook = nil
     ns.Send("TRIP_ENDED", trip)
 end
 
@@ -291,16 +300,7 @@ ns.OnEvent("PLAYER_LOGOUT", function()
         return
     end
     trip.endAt = Now()
-    if trip.caught == 0 then
-        local book = ns.Book()
-        for index, entry in ipairs(book.trips) do
-            if entry == trip then
-                table.remove(book.trips, index)
-                book.totals.trips = math.max(0, (book.totals.trips or 1) - 1)
-                break
-            end
-        end
-    end
+    DropIfEmpty(trip, tripBook)
 end)
 
 -- Switching books, or emptying one, mid-trip: the open trip belongs to
@@ -312,6 +312,8 @@ ns.Listen("BOOK_CHANGED", function()
         State.trip = nil
         lastCastAt = nil
         trip.endAt = Now()
+        DropIfEmpty(trip, tripBook)
+        tripBook = nil
         ns.Send("TRIP_ENDED", trip)
     end
 end)

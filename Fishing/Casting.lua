@@ -109,7 +109,10 @@ Casting.lureButton = lureButton
 local afterCombat = {}
 
 local function OutOfCombat(key, work)
-    if InCombatLockdown() then
+    -- ns.InCombat, not InCombatLockdown: the latter is still false while
+    -- PLAYER_REGEN_DISABLED is handed out, and a button shown then would
+    -- stay up through the fight.
+    if ns.InCombat() then
         afterCombat[key] = work
     else
         work()

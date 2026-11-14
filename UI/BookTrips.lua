@@ -349,16 +349,16 @@ local function FillDetail(trip)
     detail.figures:SetText(table.concat(parts, " · "))
 
     detail.worth:SetWidth(width)
-    if (trip.vendor or 0) > 0 or (trip.auction or 0) > 0 then
-        detail.worth:SetText(
-            ("Worth %s at a vendor, about %s at auction"):format(
-                ns.Money(trip.vendor or 0),
-                ns.Money(trip.auction or 0)
-            )
-        )
-    else
-        detail.worth:SetText("")
+    -- The auction figure only counts catches that had a price, so it's
+    -- left out when there's none rather than shown as nothing.
+    local worth = {}
+    if (trip.vendor or 0) > 0 then
+        table.insert(worth, ("%s at a vendor"):format(ns.Money(trip.vendor)))
     end
+    if (trip.auction or 0) > 0 then
+        table.insert(worth, ("about %s at auction"):format(ns.Money(trip.auction)))
+    end
+    detail.worth:SetText(#worth > 0 and ("Worth " .. table.concat(worth, ", ")) or "")
 
     local y = detail.title:GetStringHeight()
         + detail.where:GetStringHeight()

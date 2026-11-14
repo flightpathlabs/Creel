@@ -20,8 +20,13 @@ local writing = false
 
 local function Write(name, value)
     writing = true
-    C_CVar.SetCVar(name, value)
+    -- If the write fails the flag must still come down, or every change
+    -- the player makes afterwards would be taken for one of ours.
+    local ok, message = pcall(C_CVar.SetCVar, name, value)
     writing = false
+    if not ok then
+        geterrorhandler()(message)
+    end
 end
 
 local function Saved()

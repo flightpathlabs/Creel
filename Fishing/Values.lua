@@ -110,8 +110,18 @@ local merchantOpen = false
 ns.OnEvent("MERCHANT_SHOW", function()
     merchantOpen = true
 end)
+-- Slots whose sale has been asked for but hasn't gone through yet, so a
+-- second right-click on the same item doesn't count it twice. (The item's
+-- lock can't be used for this: the client may lock it before our hook
+-- runs, on the very first click.)
+local selling = {}
+
 ns.OnEvent("MERCHANT_CLOSED", function()
     merchantOpen = false
+    wipe(selling)
+end)
+ns.OnEvent("BAG_UPDATE_DELAYED", function()
+    wipe(selling)
 end)
 
 hooksecurefunc(C_Container, "UseContainerItem", function(bag, slot)
@@ -119,13 +129,16 @@ hooksecurefunc(C_Container, "UseContainerItem", function(bag, slot)
         return
     end
     local info = C_Container.GetContainerItemInfo(bag, slot)
-    -- A locked item is one whose sale is already on its way; a second
-    -- right-click on it mustn't count it again.
-    if not info or info.isLocked then
+    if not info then
         return
     end
     local itemID = ns.Readable(info.itemID)
-    if itemID and Values.Counts(itemID) then
+    local where = bag .. ":" .. slot
+    if not itemID or selling[where] == itemID then
+        return
+    end
+    selling[where] = itemID
+    if Values.Counts(itemID) then
         local count = ns.Readable(info.stackCount) or 1
         AddSale("vendor", itemID, (Values.Vendor(itemID) or 0) * count)
     end
@@ -135,13 +148,18 @@ end)
 -- the counted items' names as the client knows them.
 -- The second return is true when some names weren't loaded yet, so a
 -- miss might only mean "not yet".
+-- Asked for once a session each; an ID that never loads (an item Forever
+-- doesn't have) isn't asked about again on every mailbox update.
+local requested = {}
+
 local function ItemByName(name)
     local unsure = false
     for itemID in pairs(Counted()) do
         local known = C_Item.GetItemNameByID(itemID)
         if known == name then
             return itemID
-        elseif not known then
+        elseif not known and not requested[itemID] then
+            requested[itemID] = true
             unsure = true
             C_Item.RequestLoadItemDataByID(itemID)
         end
@@ -149,52 +167,75 @@ local function ItemByName(name)
     return nil, unsure
 end
 
+-- Sale mails already counted: "item:price" -> list of { hour, at }, where
+-- hour is when the mail expires. A mail's expiry doesn't move while it sits
+-- in the box, so it tells two sales of the same thing at the same price
+-- apart. It's worked out from a fraction of a day left, so it can wobble
+-- by an hour between visits.
 local function SeenMail()
-    local book = ns.Book()
-    book.sales.seenMail = book.sales.seenMail or {}
-    return book.sales.seenMail
+    local sales = ns.Book().sales
+    if type(sales.seenMail) ~= "table" then
+        sales.seenMail = {}
+    end
+    return sales.seenMail
 end
 
 ns.OnEvent("MAIL_INBOX_UPDATE", function()
     local seen = SeenMail()
     local now = time()
-    -- Two lots of the same thing sold for the same price in the same hour
-    -- look alike, so each look-alike in this inbox gets its own number.
-    local alike = {}
+    -- Each mail in the box claims one entry it matches, so two look-alike
+    -- mails can't both be taken for the one sale already counted, and
+    -- taking a mail out doesn't shuffle which is which.
+    local claimed = {}
     for index = 1, GetInboxNumItems() do
         local invoiceType, itemName, _, bid, _, _, consignment = GetInboxInvoiceInfo(index)
         if invoiceType == "seller" and itemName and bid then
-            -- A mail's expiry doesn't move while it sits in the box, so it
-            -- and the sale's details name the mail well enough not to count
-            -- it twice. The expiry is worked out from a fraction of a day
-            -- left, so it can wobble across an hour's edge between visits;
-            -- the neighbouring hours are checked too.
             local daysLeft = select(7, GetInboxHeaderInfo(index)) or 0
             local hour = math.floor((now + daysLeft * ns.SECONDS_PER_DAY) / 3600 + 0.5)
             local base = ("%s:%d"):format(itemName, bid)
-            alike[base] = (alike[base] or 0) + 1
-            local function Key(h)
-                return ("%s:%d:%d"):format(base, h, alike[base])
+            local entries = seen[base]
+            if type(entries) ~= "table" then
+                entries = {}
+                seen[base] = entries
             end
-            local key = Key(hour)
-            if not (seen[key] or seen[Key(hour - 1)] or seen[Key(hour + 1)]) then
+
+            local match
+            for _, entry in ipairs(entries) do
+                if not claimed[entry] and math.abs(entry.hour - hour) <= 1 then
+                    match = entry
+                    break
+                end
+            end
+
+            if match then
+                claimed[match] = true
+            else
                 -- A name the client hasn't loaded yet can't be matched; the
-                -- mail is left unseen so the next look at the inbox counts it.
+                -- mail is left alone so the next look at the inbox counts it.
                 local itemID, unsure = ItemByName(itemName)
-                if itemID then
-                    seen[key] = now
-                    AddSale("auction", itemID, bid - (consignment or 0))
-                elseif not unsure then
-                    seen[key] = now
+                if itemID or not unsure then
+                    local entry = { hour = hour, at = now }
+                    table.insert(entries, entry)
+                    claimed[entry] = true
+                    if itemID then
+                        AddSale("auction", itemID, bid - (consignment or 0))
+                    end
                 end
             end
         end
     end
 
-    -- Mail lasts 30 days, so older keys can go.
-    for key, at in pairs(seen) do
-        if now - at > 31 * ns.SECONDS_PER_DAY then
-            seen[key] = nil
+    -- Mail lasts 30 days, so older entries can go.
+    for base, entries in pairs(seen) do
+        if type(entries) == "table" then
+            for index = #entries, 1, -1 do
+                if now - (entries[index].at or 0) > 31 * ns.SECONDS_PER_DAY then
+                    table.remove(entries, index)
+                end
+            end
+        end
+        if type(entries) ~= "table" or #entries == 0 then
+            seen[base] = nil
         end
     end
 end)
