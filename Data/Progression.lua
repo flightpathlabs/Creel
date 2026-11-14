@@ -286,10 +286,61 @@ Progression.npcs = {
     },
 }
 
+-- Fishing supply vendors who stand beside a capital's fishing trainer,
+-- for lures and poles. Coordinates from wow-professions.com's Classic
+-- pages, which agree with the Forever guides' trainer positions to within
+-- a step. Stormwind's, Catherine Leland, is left out: that page puts her
+-- at 45.9, 58.4, but the Forever guides have the trainer beside her at
+-- 55.0, 69.6, so Forever's Stormwind map seems to differ.
+Progression.vendors = {
+    {
+        side = "Alliance",
+        name = "Tansy Puddlefizz",
+        place = "Ironforge, Forlorn Cavern",
+        uiMapID = 1455,
+        x = 47.9,
+        y = 6.2,
+    },
+    {
+        side = "Alliance",
+        name = "Voloren",
+        place = "Darnassus",
+        uiMapID = 1457,
+        x = 47.0,
+        y = 56.6,
+    },
+    {
+        side = "Horde",
+        name = "Shankys",
+        place = "Orgrimmar, Valley of Honor",
+        uiMapID = 1454,
+        x = 69.7,
+        y = 29.6,
+    },
+    {
+        side = "Horde",
+        name = "Lizbeth Cromwell",
+        place = "Undercity, Magic Quarter",
+        uiMapID = 1458,
+        x = 81.0,
+        y = 31.1,
+    },
+    {
+        side = "Horde",
+        name = "Sewa Mistrunner",
+        place = "Thunder Bluff",
+        uiMapID = 1456,
+        x = 55.9,
+        y = 47.6,
+    },
+}
+
 -- Where to fish -----------------------------------------------------------------
 
 -- Skill brackets, from..to, with waters for each side and what they
--- mostly give. Zone skill levels are kept on the server, so these are the
+-- mostly give. Each water is { name, mapID }: the zone map it's on, from
+-- the client's UiMap table for build 1.60.1.70888, so the page can open
+-- the world map there. Zone skill levels are kept on the server, so these are the
 -- original game's and only a rough guide. later lists harder waters for
 -- the top of the bracket. Forever's own zones (the Riverglades, Mount
 -- Hyjal) are left out until there's more than one guide's word for them.
@@ -298,9 +349,17 @@ Progression.brackets = {
         from = 1,
         to = 75,
         waters = {
-            Alliance = { "Crystal Lake", "Iceflow Lake", "Rut'theran Village" },
-            Horde = { "the Durotar coast", "Stonebull Lake", "Brightwater Lake" },
-            Both = { "Zephras Isle" },
+            Alliance = {
+                { name = "Crystal Lake", mapID = 1429 },
+                { name = "Iceflow Lake", mapID = 1426 },
+                { name = "Rut'theran Village", mapID = 1438 },
+            },
+            Horde = {
+                { name = "the Durotar coast", mapID = 1411 },
+                { name = "Stonebull Lake", mapID = 1412 },
+                { name = "Brightwater Lake", mapID = 1420 },
+            },
+            Both = { { name = "Zephras Isle", mapID = 2521 } },
         },
         note = "City water tends to lose you fish until about 75.",
         catches = {
@@ -312,9 +371,18 @@ Progression.brackets = {
         from = 75,
         to = 150,
         waters = {
-            Alliance = { "Westfall", "Darkshore", "Loch Modan" },
-            Horde = { "the Barrens", "Silverpine Forest" },
-            Both = { "the capital cities' canals" },
+            Alliance = {
+                { name = "Stormwind's canals", mapID = 1453 },
+                { name = "Westfall", mapID = 1436 },
+                { name = "Darkshore", mapID = 1439 },
+                { name = "Loch Modan", mapID = 1432 },
+            },
+            Horde = {
+                { name = "Undercity's canals", mapID = 1458 },
+                { name = "Orgrimmar", mapID = 1454 },
+                { name = "the Barrens", mapID = 1413 },
+                { name = "Silverpine Forest", mapID = 1421 },
+            },
         },
         note = "Deviate Fish come from the oases in the Barrens.",
         catches = {
@@ -329,18 +397,25 @@ Progression.brackets = {
         from = 150,
         to = 225,
         waters = {
-            Alliance = { "Redridge Mountains", "Duskwood", "the Wetlands" },
-            Horde = { "Stonetalon Mountains" },
-            Both = { "Hillsbrad Foothills", "Ashenvale" },
+            Alliance = {
+                { name = "Redridge Mountains", mapID = 1433 },
+                { name = "Duskwood", mapID = 1431 },
+                { name = "the Wetlands", mapID = 1437 },
+            },
+            Horde = { { name = "Stonetalon Mountains", mapID = 1442 } },
+            Both = {
+                { name = "Hillsbrad Foothills", mapID = 1424 },
+                { name = "Ashenvale", mapID = 1440 },
+            },
         },
         later = {
-            "Arathi Highlands",
-            "Alterac Mountains",
-            "Desolace",
-            "Dustwallow Marsh",
-            "Stranglethorn Vale",
-            "Swamp of Sorrows",
-            "Thousand Needles",
+            { name = "Arathi Highlands", mapID = 1417 },
+            { name = "Alterac Mountains", mapID = 1416 },
+            { name = "Desolace", mapID = 1443 },
+            { name = "Dustwallow Marsh", mapID = 1445 },
+            { name = "Stranglethorn Vale", mapID = 1434 },
+            { name = "Swamp of Sorrows", mapID = 1435 },
+            { name = "Thousand Needles", mapID = 1441 },
         },
         catches = {
             6308, -- Raw Bristle Whisker Catfish
@@ -355,17 +430,17 @@ Progression.brackets = {
         to = 300,
         waters = {
             Both = {
-                "Feralas",
-                "Tanaris",
-                "the Hinterlands",
-                "Azshara",
-                "Felwood",
-                "Moonglade",
-                "Un'Goro Crater",
-                "Western Plaguelands",
+                { name = "Feralas", mapID = 1444 },
+                { name = "Tanaris", mapID = 1446 },
+                { name = "the Hinterlands", mapID = 1425 },
+                { name = "Azshara", mapID = 1447 },
+                { name = "Felwood", mapID = 1448 },
+                { name = "Moonglade", mapID = 1450 },
+                { name = "Un'Goro Crater", mapID = 1449 },
+                { name = "Western Plaguelands", mapID = 1422 },
             },
         },
-        note = "Nightfin Snapper bite at night, Sunscale Salmon by day.",
+        note = "In the original game Nightfin Snapper bit at night and Sunscale Salmon by day.",
         catches = {
             13758, -- Raw Redgill
             4603, -- Raw Spotted Yellowtail
@@ -378,7 +453,12 @@ Progression.brackets = {
     {
         from = 300,
         waters = {
-            Both = { "Winterspring", "Eastern Plaguelands", "Silithus", "Burning Steppes" },
+            Both = {
+                { name = "Winterspring", mapID = 1452 },
+                { name = "Eastern Plaguelands", mapID = 1423 },
+                { name = "Silithus", mapID = 1451 },
+                { name = "Burning Steppes", mapID = 1428 },
+            },
         },
         catches = {
             13888, -- Darkclaw Lobster
@@ -401,6 +481,9 @@ Progression.brackets = {
 --   title   shown in place of the item's name
 --   where   a short place, shown beside the name
 --   knownSpell  the entry drops off once the player knows this spell
+--   place   where to go: { mapID, x, y, label } from guides (each noted
+--           where it's given), or "trainer" or "vendor" for the nearest
+--           fishing trainer or supply vendor on the player's side
 Progression.worth = {
     {
         -- Shown before Fishing is learned too, since the quest leads to it.
@@ -411,6 +494,7 @@ Progression.worth = {
         itemID = 279967, -- Fish Bowl
         knownSpell = 1229745, -- Fish Bowl, once learned
         title = "Camping 101: Fishing",
+        place = "trainer",
         text = "A quest that follows The Great Outdoors: reach skill 20, then a trainer teaches"
             .. " you the Fish Bowl for your campfire.",
     },
@@ -421,6 +505,8 @@ Progression.worth = {
         itemID = 12225, -- Blump Family Fishing Pole
         bonus = 3,
         where = "Darkshore",
+        -- warcraft.wiki.gg; one source only.
+        place = { mapID = 1439, x = 36.1, y = 44.9, label = "Gubber Blump, Auberdine" },
         text = "The reward for the quest The Family and the Fishing Pole. Adds 3 to your skill.",
     },
     {
@@ -428,6 +514,7 @@ Progression.worth = {
         minSkill = 10,
         minLevel = 5,
         itemID = 6365, -- Strong Fishing Pole
+        place = "vendor",
         bonus = 5,
         text = "Fishing supply vendors sell it. Adds 5 to your skill.",
     },
@@ -438,6 +525,9 @@ Progression.worth = {
         itemID = 6367, -- Big Iron Fishing Pole
         bonus = 20,
         where = "Desolace",
+        -- warcraft.wiki.gg gives "about 20, 79"; method.gg only says the
+        -- southwestern coast.
+        place = { mapID = 1443, x = 20.0, y = 79.0, label = "Shellfish Traps, Desolace coast" },
         text = "Now and then found in the Shellfish Traps along the coast. Adds 20.",
     },
     {
@@ -450,6 +540,8 @@ Progression.worth = {
         itemID = 19022, -- Nat Pagle's Extreme Angler FC-5000
         bonus = 25,
         where = "the Hinterlands",
+        -- method.gg.
+        place = { mapID = 1425, x = 80.2, y = 81.4, label = "Katoom, Revantusk Village" },
         text = "Adds 25 to your skill. Katoom the Angler at Revantusk Village gives it for the"
             .. " quest Snapjaws, Mon!",
     },
@@ -457,6 +549,8 @@ Progression.worth = {
         kind = "pole",
         minSkill = 300,
         itemID = 19970, -- Arcanite Fishing Pole
+        -- Where the Extravaganza is handed in; see the event below.
+        place = { mapID = 1434, x = 27.4, y = 76.9, label = "Riggle Bassbait, Booty Bay" },
         bonus = 35,
         text = "A prize for the first to finish the Extravaganza. Adds 35.",
     },
@@ -464,24 +558,28 @@ Progression.worth = {
         kind = "lure",
         minSkill = 1,
         itemID = 6529, -- Shiny Bauble
+        place = "vendor",
         text = "25 more skill for ten minutes. Fishing supply vendors sell them.",
     },
     {
         kind = "lure",
         minSkill = 50,
         itemID = 6530, -- Nightcrawlers
+        place = "vendor",
         text = "50 more skill for ten minutes. Fishing supply vendors sell them.",
     },
     {
         kind = "lure",
         minSkill = 100,
         itemID = 6532, -- Bright Baubles
+        place = "vendor",
         text = "75 more skill for ten minutes. Try fishing supply vendors and the auction house.",
     },
     {
         kind = "lure",
         minSkill = 100,
         itemID = 6533, -- Aquadynamic Fish Attractor
+        place = "vendor",
         text = "100 more skill for five minutes. Engineers make them, so look at the auction"
             .. " house.",
     },
@@ -489,6 +587,9 @@ Progression.worth = {
         kind = "camp",
         minSkill = 140,
         itemID = 279965, -- Fishing Rack
+        -- The entrance: warcrafttavern.com's Forever guide; warcraft.wiki.gg
+        -- has 14.0, 15.0.
+        place = { mapID = 1440, x = 14.5, y = 14.6, label = "Blackfathom Deeps, the Zoram Strand" },
         knownSpell = 1262990,
         text = "Its blueprint drops from Gelihast in Blackfathom Deeps. By a campfire it brings"
             .. " uncommon fish for an hour.",
@@ -500,6 +601,11 @@ Progression.worth = {
         itemID = 19807, -- Speckled Tastyfish
         title = "Stranglethorn Fishing Extravaganza",
         where = "Booty Bay",
+        -- Riggle Bassbait takes the catch, with Jang beside him for the
+        -- coin: Wowhead's Classic guide puts them on the docks by the inn
+        -- here, and warcraft.wiki.gg gives Jang the same. The wiki's
+        -- 41.5, 73.1 for Riggle is on the later Cape of Stranglethorn map.
+        place = { mapID = 1434, x = 27.4, y = 76.9, label = "Riggle Bassbait and Jang, Booty Bay" },
         text = "Sundays, 2 to 4 pm server time. Catch Speckled Tastyfish; the first to finish win"
             .. " prizes.",
     },

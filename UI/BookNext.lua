@@ -34,6 +34,9 @@ local PLACE_HEIGHT = 36
 local PLACE_CATCHES = 4
 local SURE_AFTER = 10
 
+-- Room kept at a row's right for its map pin.
+local PIN_ROOM = 28
+
 local CATCH_ICON = 28
 local CATCH_GAP = 6
 
@@ -47,8 +50,6 @@ local MAIN_HAND = 16
 local MINUTES_PER_DAY = 24 * 60
 local MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY
 
-local ROUGHLY = "Roughly where guides say. Nobody has checked it in game yet."
-
 local tab
 
 local function Data()
@@ -57,14 +58,6 @@ end
 
 local function Muted(text)
     return Kit.Colored(text, MUTED)
-end
-
--- "a, b or c".
-local function Either(list)
-    if #list <= 1 then
-        return list[1] or ""
-    end
-    return table.concat(list, ", ", 1, #list - 1) .. " or " .. list[#list]
 end
 
 -- "3 days and 4 hours", "2 hours and 10 minutes", "25 minutes".
@@ -208,34 +201,25 @@ local function DistanceText(yards)
     return ("about %s yards away"):format(BreakUpLargeNumbers(math.floor(yards / 50 + 0.5) * 50))
 end
 
---- Sets the game's own map pin on someone and opens the map there. Not in
---- combat, where the map can't be opened from here.
-local function ShowOnMap(npc)
-    if ns.InCombat() then
-        UIErrorsFrame:AddExternalErrorMessage(ERR_NOT_IN_COMBAT)
-        return
-    end
-    if
-        UiMapPoint
-        and C_Map.CanSetUserWaypointOnMap
-        and C_Map.CanSetUserWaypointOnMap(npc.uiMapID)
-    then
-        local point = UiMapPoint.CreateFromCoordinates(npc.uiMapID, npc.x / 100, npc.y / 100)
-        if
-            C_Map.SetUserWaypoint(point)
-            and C_SuperTrack
-            and C_SuperTrack.SetSuperTrackedUserWaypoint
-        then
-            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+-- A person as a place on the map, for a pin.
+local function PlaceOf(npc)
+    return {
+        mapID = npc.uiMapID,
+        x = npc.x,
+        y = npc.y,
+        label = ("%s, %s"):format(npc.name, npc.place),
+    }
+end
+
+-- Fishing supply vendors on the player's side.
+local function Vendors(side)
+    local list = {}
+    for _, vendor in ipairs(Data().vendors or {}) do
+        if ForSide(vendor, side) then
+            table.insert(list, vendor)
         end
     end
-    if OpenWorldMap then
-        OpenWorldMap(npc.uiMapID)
-    end
-    -- Out of the way, so the map can be seen.
-    if WorldMapFrame and WorldMapFrame:IsShown() then
-        ns.BookWindow.Close()
-    end
+    return list
 end
 
 -- What to suggest -------------------------------------------------------------------
@@ -392,28 +376,7 @@ local function CreateCatchSlot(parent)
     return slot
 end
 
--- What the map link will do. Setting a pin takes the place of the
--- player's own, and of a tracked quest's arrow, so they're told first.
-local function MapLinkLines(npc)
-    if not (npc and UiMapPoint and C_Map.CanSetUserWaypointOnMap(npc.uiMapID)) then
-        return { "Opens the map there. The game can't put a pin on that map.", ROUGHLY }
-    end
-    local lines = { "Puts a map pin there and opens the map.", ROUGHLY }
-    if C_Map.HasUserWaypoint() then
-        table.insert(lines, Kit.Colored("This replaces the pin you already have.", Kit.GOLD))
-    end
-    return lines
-end
-
-local function MapLink(parent, onClick, npcOf)
-    local link = Kit.Link(parent, "Show on map", onClick)
-    Kit.Tooltip(link, "Show on map", function()
-        return MapLinkLines(npcOf())
-    end)
-    return link
-end
-
--- The person to see: name, place and distance, and a map link.
+-- The person to see: name, place and distance, and a map pin.
 local function CreatePerson(parent)
     local person = CreateFrame("Frame", nil, parent)
     person:SetHeight(PLACE_HEIGHT)
@@ -425,14 +388,8 @@ local function CreatePerson(parent)
     person.place:SetPoint("TOPLEFT", person.name, "BOTTOMLEFT", 0, -LINE_GAP)
     person.place:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
 
-    person.map = MapLink(person, function()
-        if person.npc then
-            ShowOnMap(person.npc)
-        end
-    end, function()
-        return person.npc
-    end)
-    person.map:SetPoint("RIGHT")
+    person.pin = BookKit.PinButton(person)
+    person.pin:SetPoint("RIGHT", -2, 0)
     return person
 end
 
@@ -447,17 +404,15 @@ local function CreatePlaceRow(parent)
     row.line:SetPoint("TOPLEFT", row.name, "BOTTOMLEFT", 0, -LINE_GAP)
     row.line:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
 
-    row.map = Kit.Link(row, "Show on map", function()
-        BookKit.ShowOnMap(row.spotID)
-    end)
-    row.map:SetPoint("RIGHT")
+    row.pin = BookKit.PinButton(row)
+    row.pin:SetPoint("RIGHT", -2, 0)
 
     row.slots = {}
     for index = 1, PLACE_CATCHES do
         local slot = CreateCatchSlot(row)
         slot:SetPoint(
             "RIGHT",
-            row.map,
+            row.pin,
             "LEFT",
             -12 - (PLACE_CATCHES - index) * (CATCH_ICON + CATCH_GAP),
             0
@@ -476,7 +431,18 @@ local function FillPlaceRow(row, entry)
     row.name:SetText(ns.Spots.Name(spot))
     local zone = (spot.zone and spot.zone ~= "") and spot.zone or "Unknown waters"
     row.line:SetText(("%s · fished from skill %d"):format(zone, spot.lowestSkill))
-    row.map:SetShown(spot.mapID ~= nil and spot.mapX ~= nil)
+    -- Inside an instance there's no map position, so no pin.
+    local onMap = spot.mapID ~= nil and spot.mapX ~= nil
+    row.pin:SetShown(onMap)
+    row.pin.place = onMap
+            and {
+                mapID = spot.mapID,
+                x = spot.mapX * 100,
+                y = spot.mapY * 100,
+                label = ns.Spots.Name(spot),
+                ours = true,
+            }
+        or nil
 
     -- The icons fill from the right, so a place with two catches has them
     -- beside the map link rather than in a gap.
@@ -489,6 +455,58 @@ local function FillPlaceRow(row, entry)
             BookKit.FillSlot(slot, catch.itemID, nil, true)
         end
     end
+end
+
+-- Zone names as links that open the world map on that zone, laid out
+-- along lines that wrap.
+local CHIP_HEIGHT = 18
+local CHIP_GAP = 2
+
+local function CreateZoneChip(parent)
+    local chip = Kit.Link(parent, "", function(self)
+        BookKit.ShowZone(self.mapID)
+    end)
+    -- In the game's gold, as a zone name in a quest's text is, so it reads
+    -- as something to click rather than small print.
+    chip:SetNormalFontObject("GameFontNormalSmall")
+    chip:SetHighlightFontObject("GameFontHighlightSmall")
+    chip:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(self.name)
+        GameTooltip:AddLine("Click to open the world map there.", 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    chip:SetScript("OnLeave", GameTooltip_Hide)
+    return chip
+end
+
+local function CreateZoneList(parent)
+    local list = CreateFrame("Frame", nil, parent)
+    list.chips = BookKit.Pool(function()
+        return CreateZoneChip(list)
+    end)
+    return list
+end
+
+--- Lays the zones out within a width and sizes the list to fit.
+local function FillZoneList(list, waters, width)
+    list.chips:Reset()
+    local x, y = 0, 0
+    for _, water in ipairs(waters) do
+        local chip = list.chips:Next()
+        chip.name, chip.mapID = water.name, water.mapID
+        chip:SetText(water.name)
+        local chipWidth = chip:GetFontString():GetStringWidth() + 8
+        chip:SetSize(chipWidth, CHIP_HEIGHT)
+        if x > 0 and x + chipWidth > width then
+            x, y = 0, y + CHIP_HEIGHT
+        end
+        chip:ClearAllPoints()
+        chip:SetPoint("TOPLEFT", x - 4, -y)
+        x = x + chipWidth + CHIP_GAP
+    end
+    list.chips:HideRest()
+    list:SetHeight(#waters > 0 and y + CHIP_HEIGHT or 1)
 end
 
 -- A row of icons for what a bracket's waters give.
@@ -547,10 +565,27 @@ local function CreateWorthRow(parent)
     row.text = Kit.Paragraph(row, "GameFontHighlightSmall")
     row.text:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -LINE_GAP)
     row.text:SetTextColor(MUTED[1], MUTED[2], MUTED[3])
+
+    row.pin = BookKit.PinButton(row)
+    row.pin:SetPoint("TOPRIGHT", -2, -6)
     return row
 end
 
-local function FillWorthRow(row, width, entry)
+-- Where an entry sends the player: its own place, or the nearest trainer
+-- or supply vendor on their side.
+local function EntryPlace(entry, side)
+    local place = entry.place
+    if place == "trainer" then
+        local npc = Nearest(Trainers(side))
+        return npc and PlaceOf(npc)
+    elseif place == "vendor" then
+        local npc = Nearest(Vendors(side))
+        return npc and PlaceOf(npc)
+    end
+    return type(place) == "table" and place or nil
+end
+
+local function FillWorthRow(row, width, entry, side)
     BookKit.FillSlot(row.slot, entry.itemID, nil, true)
     row.itemID = entry.itemID
     row.fromID = entry.fromID
@@ -569,7 +604,11 @@ local function FillWorthRow(row, width, entry)
         end
     end
 
-    local words = width - ICON - ICON_GAP
+    local place = EntryPlace(entry, side)
+    row.pin.place = place
+    row.pin:SetShown(place ~= nil)
+
+    local words = width - ICON - ICON_GAP - (place and PIN_ROOM or 0)
     row.title:SetWidth(words)
     row.title:SetText(title)
     row.text:SetWidth(words)
@@ -675,7 +714,7 @@ local function FillPerson(layout, nextRank, side)
 
     local inside = Kit.Inside(layout, section)
     local person = section.person
-    person.npc = npc
+    person.pin.place = PlaceOf(npc)
     person.name:SetText(npc.name)
     local where = npc.place
     local distance = DistanceText(yards)
@@ -715,6 +754,8 @@ local function FillWaters(layout, effective, side)
     local shown = bracket ~= nil
     section.bracketLabel:SetShown(shown)
     section.list:SetShown(shown)
+    section.laterLabel:SetShown(shown and bracket.later ~= nil)
+    section.later:SetShown(shown and bracket.later ~= nil)
     section.note:SetShown(shown and bracket.note ~= nil)
     section.strip:SetShown(shown)
     if shown then
@@ -724,21 +765,24 @@ local function FillWaters(layout, effective, side)
             inside,
             section.bracketLabel,
             gap,
-            ("Waters for %s, as a rough guide"):format(range)
+            ("Waters for %s, as a rough guide. Click one to see it on the map."):format(range)
         )
 
-        local names = {}
-        for _, name in ipairs(bracket.waters[side] or {}) do
-            table.insert(names, name)
+        local waters = {}
+        for _, water in ipairs(bracket.waters[side] or {}) do
+            table.insert(waters, water)
         end
-        for _, name in ipairs(bracket.waters.Both or {}) do
-            table.insert(names, name)
+        for _, water in ipairs(bracket.waters.Both or {}) do
+            table.insert(waters, water)
         end
-        local words = "Try " .. Either(names) .. "."
+        FillZoneList(section.list, waters, inside.width)
+        Kit.Place(inside, section.list, LINE_GAP)
+
         if bracket.later then
-            words = words .. " Further on: " .. Either(bracket.later) .. "."
+            Kit.PlaceText(inside, section.laterLabel, LINE_GAP, "Further on:")
+            FillZoneList(section.later, bracket.later, inside.width)
+            Kit.Place(inside, section.later, 2)
         end
-        Kit.PlaceText(inside, section.list, LINE_GAP, words)
         if bracket.note then
             Kit.PlaceText(inside, section.note, LINE_GAP, bracket.note)
         end
@@ -764,7 +808,7 @@ local function FillWorth(layout, skill, level, side, bracket)
     section.rows:Reset()
     for index, entry in ipairs(list) do
         local row = section.rows:Next()
-        FillWorthRow(row, inside.width, entry)
+        FillWorthRow(row, inside.width, entry, side)
         Kit.Place(inside, row, index == 1 and 0 or ROW_GAP)
     end
     section.rows:HideRest()
@@ -844,7 +888,9 @@ function BookNext.Create(parent)
         return CreatePlaceRow(waters)
     end)
     waters.bracketLabel = MutedParagraph(waters)
-    waters.list = Kit.Paragraph(waters, "GameFontHighlight")
+    waters.list = CreateZoneList(waters)
+    waters.laterLabel = MutedParagraph(waters)
+    waters.later = CreateZoneList(waters)
     waters.note = MutedParagraph(waters)
     waters.strip = CreateCatchStrip(waters)
     tab.waters = waters

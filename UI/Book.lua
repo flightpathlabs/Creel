@@ -234,6 +234,146 @@ function BookKit.ShowOnMap(spotID)
     BookWindow.Open("places", spotID)
 end
 
+-- Places on the map -----------------------------------------------------------
+
+-- A place is { mapID, x, y, label, ours }: x and y from 0 to 100 across the
+-- zone's map, as guides give them. ours is true for the player's own
+-- fishing spots; every other place comes from guides and is only rough.
+
+-- The pin the game's own world map uses for a waypoint, and its glow.
+local PIN_ATLAS = "Waypoint-MapPin-Untracked"
+local PIN_HIGHLIGHT = "Waypoint-MapPin-Highlight"
+local PIN_HEIGHT = 20
+
+local function MapName(mapID)
+    local info = C_Map.GetMapInfo(mapID)
+    return info and info.name or nil
+end
+
+local function CanPin(mapID)
+    return UiMapPoint ~= nil
+        and C_Map.CanSetUserWaypointOnMap ~= nil
+        and C_Map.CanSetUserWaypointOnMap(mapID)
+end
+
+-- Opens the world map on a zone and puts the book away so the map can be
+-- seen. In combat it says so the game's way instead.
+local function OpenMap(mapID)
+    if ns.InCombat() then
+        UIErrorsFrame:AddExternalErrorMessage(ERR_NOT_IN_COMBAT)
+        return false
+    end
+    if OpenWorldMap then
+        OpenWorldMap(mapID)
+    end
+    if WorldMapFrame and WorldMapFrame:IsShown() then
+        BookWindow.Close()
+    end
+    return true
+end
+
+--- Puts the game's own map pin on a place, follows it, and opens the map
+--- there. Where the game won't take a pin on that map, just the map.
+---@param place table  { mapID, x, y, label }
+function BookKit.ShowPlace(place)
+    if ns.InCombat() then
+        UIErrorsFrame:AddExternalErrorMessage(ERR_NOT_IN_COMBAT)
+        return
+    end
+    if CanPin(place.mapID) then
+        local point = UiMapPoint.CreateFromCoordinates(place.mapID, place.x / 100, place.y / 100)
+        if
+            C_Map.SetUserWaypoint(point)
+            and C_SuperTrack
+            and C_SuperTrack.SetSuperTrackedUserWaypoint
+        then
+            C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+        end
+    end
+    OpenMap(place.mapID)
+end
+
+--- Opens the world map on a zone, with no pin.
+function BookKit.ShowZone(mapID)
+    OpenMap(mapID)
+end
+
+--- What a place's pin will do, for its tooltip: where it is, whether a
+--- pin can go there, and that it replaces one the player already has.
+local function PlaceTooltip(button)
+    local place = button.place
+    if not place then
+        return
+    end
+    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    GameTooltip:SetText(place.label or MapName(place.mapID) or "")
+    local where = ("%s %.1f, %.1f"):format(MapName(place.mapID) or "", place.x, place.y)
+    if not place.ours then
+        where = where .. ", roughly"
+    end
+    GameTooltip:AddLine(where, 1, 1, 1)
+    if CanPin(place.mapID) then
+        GameTooltip:AddLine("Click to put a map pin here and open the map.", 1, 1, 1, true)
+        if C_Map.HasUserWaypoint() then
+            GameTooltip:AddLine(
+                "This replaces the map pin you already have.",
+                Kit.GOLD[1],
+                Kit.GOLD[2],
+                Kit.GOLD[3],
+                true
+            )
+        end
+    else
+        GameTooltip:AddLine(
+            "Click to open the map there. The game can't put a pin on that map.",
+            1,
+            1,
+            1,
+            true
+        )
+    end
+    if not place.ours then
+        GameTooltip:AddLine(
+            "From guides; nobody has checked it in game yet.",
+            Kit.MUTED[1],
+            Kit.MUTED[2],
+            Kit.MUTED[3],
+            true
+        )
+    end
+    GameTooltip:Show()
+end
+
+--- A small map pin for the end of a row. Set button.place before it's
+--- shown; clicking it puts the game's pin there and opens the map.
+function BookKit.PinButton(parent)
+    local button = CreateFrame("Button", nil, parent)
+    button:SetSize(PIN_HEIGHT, PIN_HEIGHT)
+
+    -- Square, and the glow drawn plainly over it, as the world map's own
+    -- waypoint pin does (WaypointLocationDataProvider.xml).
+    local icon = button:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    if not BookKit.SetAtlasIfThere(icon, PIN_ATLAS) then
+        Kit.SetIcon(icon, "unknown")
+    end
+
+    local glow = button:CreateTexture(nil, "HIGHLIGHT")
+    glow:SetAllPoints()
+    if not BookKit.SetAtlasIfThere(glow, PIN_HIGHLIGHT) then
+        glow:SetColorTexture(1, 1, 1, 0.2)
+    end
+
+    button:SetScript("OnClick", function(self)
+        if self.place then
+            BookKit.ShowPlace(self.place)
+        end
+    end)
+    button:SetScript("OnEnter", PlaceTooltip)
+    button:SetScript("OnLeave", GameTooltip_Hide)
+    return button
+end
+
 -- Pictures --------------------------------------------------------------------
 
 --- Points a texture at an atlas if the client has it. Returns false, and
