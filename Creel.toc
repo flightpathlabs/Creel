@@ -42,3 +42,4 @@ UI\BookNext.lua
 UI\MapPins.lua
 UI\Setup.lua
 UI\Settings.lua
+UI\MinimapButton.lua

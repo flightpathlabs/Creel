@@ -43,6 +43,12 @@ ns.DEFAULT_SETTINGS = {
     tooltipLine = true,
     mapPins = false,
 
+    -- The button on the minimap's rim, and where on the rim it sits, in
+    -- degrees anticlockwise from the right. Goldwise's sits at 215, so
+    -- Creel's starts a little further round.
+    minimapButton = true,
+    minimapAngle = 240,
+
     -- Quiet other sounds while fishing.
     quiet = false,
     -- Effects volume while quiet, 0 to 1; nil leaves it alone.

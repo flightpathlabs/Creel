@@ -261,6 +261,13 @@ local function AddPanelOptions()
         "Tips and trivia on the catch card",
         "A line worth reading with each catch: what it's good for, or a bit of its story."
     )
+    AddCheckbox(
+        "minimapButton",
+        "Show a button on the minimap",
+        "Left-click it for the Fishing Book, right-click for these options, and "
+            .. "shift-click to show or hide the panel. Drag it to move it round the edge. "
+            .. "Without it, /creel book opens the book."
+    )
 end
 
 local function AddSoundOptions()
