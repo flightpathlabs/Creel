@@ -47,7 +47,7 @@ local MAIN_HAND = 16
 local MINUTES_PER_DAY = 24 * 60
 local MINUTES_PER_WEEK = 7 * MINUTES_PER_DAY
 
-local ROUGHLY = "Puts a pin on the map roughly where guides say. Nobody has checked it in game yet."
+local ROUGHLY = "Roughly where guides say. Nobody has checked it in game yet."
 
 local tab
 
@@ -89,8 +89,9 @@ local function Span(minutes)
     return BookKit.Plural(math.max(1, rest), "minute", "minutes")
 end
 
---- How long until the Extravaganza, by the realm's clock, which is the
---- one the event keeps.
+--- How long until the Extravaganza, by the server's clock. The guides give
+--- its time without saying which clock they mean, so this is a best guess,
+--- and the page says "server time" rather than promising more.
 ---@return string|nil
 local function ExtravaganzaWhen()
     local event = Data().extravaganza
@@ -116,12 +117,22 @@ local function ForSide(entry, side)
     return not entry.side or entry.side == "Both" or entry.side == side
 end
 
--- Whether the player has an item anywhere: bags, bank or in the hand.
-local function Owned(itemID)
+-- Whether the player has a pole anywhere: bags, bank or in the hand.
+local function HasPole(itemID)
     if GetInventoryItemID("player", MAIN_HAND) == itemID then
         return true
     end
     return (C_Item.GetItemCount(itemID, true) or 0) > 0
+end
+
+-- Whether a lure is in the bags, where it can be put on the pole.
+local function InBags(itemID)
+    return (C_Item.GetItemCount(itemID, false) or 0) > 0
+end
+
+-- Whether the player has learned a spell: a profession recipe, here.
+local function Knows(spellID)
+    return C_SpellBook.IsSpellKnown(spellID) and true or false
 end
 
 -- The rank the game says the player is on, by its cap.
@@ -234,6 +245,7 @@ local function Fits(entry, skill, level, side)
         and (not entry.maxSkill or skill <= entry.maxSkill)
         and level >= (entry.minLevel or 0)
         and ForSide(entry, side)
+        and not (entry.knownSpell and Knows(entry.knownSpell))
 end
 
 local function LureBonus(itemID)
@@ -245,13 +257,13 @@ end
 local function BestOwned(skill)
     local pole = 0
     for _, entry in ipairs(Data().worth or {}) do
-        if entry.kind == "pole" and Owned(entry.itemID) then
+        if entry.kind == "pole" and HasPole(entry.itemID) then
             pole = math.max(pole, entry.bonus or 0)
         end
     end
     local lure = 0
     for itemID, info in pairs(ns.Lures or {}) do
-        if (info.skill or 0) <= skill and Owned(itemID) then
+        if (info.skill or 0) <= skill and InBags(itemID) then
             lure = math.max(lure, info.bonus or 0)
         end
     end
@@ -303,7 +315,7 @@ local function WorthDoing(skill, level, side, bracket)
     for _, entry in ipairs(entries) do
         if Fits(entry, skill, level, side) then
             if entry.kind == "pole" then
-                if (entry.bonus or 0) > bestPole and not Owned(entry.itemID) then
+                if (entry.bonus or 0) > bestPole and not HasPole(entry.itemID) then
                     table.insert(list, entry)
                 end
             elseif entry.kind == "lure" then
@@ -379,10 +391,23 @@ local function CreateCatchSlot(parent)
     return slot
 end
 
-local function MapLink(parent, onClick)
+-- What the map link will do. Setting a pin takes the place of the
+-- player's own, and of a tracked quest's arrow, so they're told first.
+local function MapLinkLines(npc)
+    if not (npc and UiMapPoint and C_Map.CanSetUserWaypointOnMap(npc.uiMapID)) then
+        return { "Opens the map there. The game can't put a pin on that map.", ROUGHLY }
+    end
+    local lines = { "Puts a map pin there and opens the map.", ROUGHLY }
+    if C_Map.HasUserWaypoint() then
+        table.insert(lines, Kit.Colored("This replaces the pin you already have.", Kit.GOLD))
+    end
+    return lines
+end
+
+local function MapLink(parent, onClick, npcOf)
     local link = Kit.Link(parent, "Show on map", onClick)
     Kit.Tooltip(link, "Show on map", function()
-        return { ROUGHLY }
+        return MapLinkLines(npcOf())
     end)
     return link
 end
@@ -403,6 +428,8 @@ local function CreatePerson(parent)
         if person.npc then
             ShowOnMap(person.npc)
         end
+    end, function()
+        return person.npc
     end)
     person.map:SetPoint("RIGHT")
     return person
@@ -576,7 +603,7 @@ local function FillStep(layout, skill, level)
             needs = BookKit.Plural(maxRank - skill, "more point", "more points") .. " to go."
         else
             how = "That's as far as Fishing goes. Time to try your luck at the Stranglethorn"
-                .. " Fishing Extravaganza, Sundays from 2 to 4 pm region time."
+                .. " Fishing Extravaganza, Sundays from 2 to 4 pm server time."
             needs = ExtravaganzaWhen()
             needs = needs and Kit.Colored(needs, Kit.GOLD)
         end
@@ -727,6 +754,12 @@ local function FillWorth(layout, skill, level, side, bracket)
     local inside = Kit.Inside(layout, section)
     local list = WorthDoing(skill, level, side, bracket)
 
+    -- The rows are refilled in place, so a recipe card opened from one
+    -- would end up beside something else. It stays only if its row still
+    -- shows the same recipe.
+    local owner = ns.RecipeCard and ns.RecipeCard.Owner()
+    local before = owner and owner.use
+
     section.rows:Reset()
     for index, entry in ipairs(list) do
         local row = section.rows:Next()
@@ -734,6 +767,9 @@ local function FillWorth(layout, skill, level, side, bracket)
         Kit.Place(inside, row, index == 1 and 0 or ROW_GAP)
     end
     section.rows:HideRest()
+    if owner and (owner.use ~= before or not owner:IsShown()) then
+        ns.RecipeCard.HideFrom(section)
+    end
 
     section.nothing:SetShown(#list == 0)
     if #list == 0 then

@@ -48,10 +48,16 @@ local shown = {}
 
 -- Prices -----------------------------------------------------------------------------
 
+-- The auction house keeps this share of a sale.
+local AUCTION_CUT = 0.05
+
 --- What one of a reagent costs and where that price comes from: a vendor
---- where vendors sell it, otherwise the auction house.
+--- where vendors sell it, otherwise the auction house. The catch itself,
+--- which few people buy, falls back to what a vendor would pay for it:
+--- what the player gives up by cooking it rather than selling it.
+---@param isCatch boolean  the item the recipe was listed under
 ---@return number|nil copper, string|nil source
-local function ReagentPrice(itemID)
+local function ReagentPrice(itemID, isCatch)
     local shop = ns.ShopPrices and ns.ShopPrices[itemID]
     if shop then
         return shop, "from a vendor"
@@ -60,20 +66,26 @@ local function ReagentPrice(itemID)
     if auction then
         return auction, "at auction"
     end
+    if isCatch then
+        local vendor = ns.Values.Vendor(itemID)
+        if vendor and vendor > 0 then
+            return vendor, "what a vendor pays"
+        end
+    end
     return nil, nil
 end
 
---- What one of the product sells for: at auction where there's a price,
---- otherwise what a vendor pays.
+--- What one of the product brings in: at auction, less the auction
+--- house's cut, where there's a price, otherwise what a vendor pays.
 ---@return number|nil copper, string|nil source
 local function ProductPrice(itemID)
     local auction = ns.Values.Auction(itemID)
     if auction then
-        return auction, "at auction"
+        return math.floor(auction * (1 - AUCTION_CUT)), "At auction, after the auction house's cut."
     end
     local vendor = ns.Values.Vendor(itemID)
     if vendor and vendor > 0 then
-        return vendor, "to a vendor"
+        return vendor, "What a vendor pays."
     end
     return nil, nil
 end
@@ -201,7 +213,9 @@ local function OpenInGoldwise()
     if shown.use and type(api) == "table" and type(api.ShowCraftTree) == "function" then
         local ok, opened = pcall(api.ShowCraftTree, shown.use.makes)
         if ok and opened then
+            -- Goldwise's window sits under the book, so the book goes.
             card:Hide()
+            ns.BookWindow.Close()
         end
     end
 end
@@ -344,12 +358,13 @@ local function Fill(sourceID, use)
     card.name:SetText(BookKit.ColoredName(makes))
 
     local profession = PROFESSIONS[use.profession] or use.profession or ""
-    local skill = use.learn or use.yellow
+    -- Only a recipe item says the skill it's learned at. Trainers keep
+    -- theirs on the server, so for those the colours below say the rest.
     local parts = {}
-    if skill then
-        table.insert(parts, ("%s %d"):format(profession, skill))
+    if use.learn then
+        table.insert(parts, ("%s %d"):format(profession, use.learn))
     else
-        table.insert(parts, profession)
+        table.insert(parts, profession .. ", taught by a trainer")
     end
     table.insert(parts, ("makes %d"):format(use.count or 1))
     card.skill:SetText(table.concat(parts, " · "))
@@ -380,7 +395,7 @@ local function Fill(sourceID, use)
         Kit.SetSpellIcon(row.icon, BookKit.Icon(reagent.itemID))
         row.name:SetText(("%d × %s"):format(reagent.count, BookKit.ColoredName(reagent.itemID)))
 
-        local each, where = ReagentPrice(reagent.itemID)
+        local each, where = ReagentPrice(reagent.itemID, reagent.source)
         local notes = {}
         if each then
             local cost = each * reagent.count
@@ -393,7 +408,8 @@ local function Fill(sourceID, use)
             table.insert(missing, NameOrPlaceholder(reagent.itemID))
         end
         if reagent.source then
-            local have = C_Item.GetItemCount(reagent.itemID) or 0
+            -- Bags only, as the book counts lures.
+            local have = C_Item.GetItemCount(reagent.itemID, false) or 0
             table.insert(notes, ("you have %s"):format(BreakUpLargeNumbers(have)))
         end
         row.note:SetText(table.concat(notes, " · "))
@@ -412,7 +428,8 @@ local function Fill(sourceID, use)
             LINE_GAP
         )
         if each then
-            Pair("Sells for", ns.Money(each * (use.count or 1)) .. Kit.Colored(" " .. where, MUTED))
+            Pair("Sells for", ns.Money(each * (use.count or 1)))
+            Paragraph(Kit.Colored(where, MUTED), 2)
         end
     elseif not each then
         Pair("Costs to make", ns.Money(total))
@@ -420,7 +437,8 @@ local function Fill(sourceID, use)
     else
         local sells = each * (use.count or 1)
         Pair("Costs to make", ns.Money(total))
-        Pair("Sells for", ns.Money(sells) .. Kit.Colored(" " .. where, MUTED))
+        Pair("Sells for", ns.Money(sells))
+        Paragraph(Kit.Colored(where, MUTED), 2)
         local difference = sells - total
         local words
         if difference >= 0 then
@@ -447,10 +465,11 @@ local function Fill(sourceID, use)
             row.use = step
             Kit.SetSpellIcon(row.icon, BookKit.Icon(step.makes))
             local label = BookKit.ColoredName(step.makes)
-            local nextSkill = step.learn or step.yellow
-            if nextSkill then
-                local words = PROFESSIONS[step.profession] or step.profession or ""
-                label = label .. Kit.Colored((" (%s %d)"):format(words, nextSkill), MUTED)
+            local words = PROFESSIONS[step.profession] or step.profession or ""
+            if step.learn then
+                label = label .. Kit.Colored((" (%s %d)"):format(words, step.learn), MUTED)
+            else
+                label = label .. Kit.Colored((" (%s trainer)"):format(words), MUTED)
             end
             row.name:SetText(label)
             Place(row, index == 1 and LINE_GAP or 2)
@@ -523,6 +542,12 @@ function RecipeCard.HideFrom(frame)
     if card and card:IsShown() and IsWithin(shown.owner, frame) then
         card:Hide()
     end
+end
+
+--- What the open card was opened from, if it's open.
+---@return table|nil
+function RecipeCard.Owner()
+    return card and card:IsShown() and shown.owner or nil
 end
 
 --- Whether the mouse is over the card, for other popovers deciding

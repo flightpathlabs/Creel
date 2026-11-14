@@ -400,6 +400,7 @@ Progression.brackets = {
 --   bonus   a pole's fishing skill (lures take theirs from Data/Lures.lua)
 --   title   shown in place of the item's name
 --   where   a short place, shown beside the name
+--   knownSpell  the entry drops off once the player knows this spell
 Progression.worth = {
     {
         -- Shown before Fishing is learned too, since the quest leads to it.
@@ -408,6 +409,7 @@ Progression.worth = {
         maxSkill = 75,
         minLevel = 4,
         itemID = 279967, -- Fish Bowl
+        knownSpell = 1229745, -- Fish Bowl, once learned
         title = "Camping 101: Fishing",
         text = "A quest that follows The Great Outdoors: reach skill 20, then a trainer teaches"
             .. " you the Fish Bowl for your campfire.",
@@ -442,6 +444,9 @@ Progression.worth = {
         kind = "pole",
         minSkill = 100,
         side = "Horde",
+        -- The quest is in the Hinterlands. Its exact level isn't confirmed;
+        -- 40 keeps it from players who couldn't get there yet.
+        minLevel = 40,
         itemID = 19022, -- Nat Pagle's Extreme Angler FC-5000
         bonus = 25,
         where = "the Hinterlands",
@@ -484,6 +489,7 @@ Progression.worth = {
         kind = "camp",
         minSkill = 140,
         itemID = 279965, -- Fishing Rack
+        knownSpell = 1262990,
         text = "Its blueprint drops from Gelihast in Blackfathom Deeps. By a campfire it brings"
             .. " uncommon fish for an hour.",
     },
@@ -494,18 +500,21 @@ Progression.worth = {
         itemID = 19807, -- Speckled Tastyfish
         title = "Stranglethorn Fishing Extravaganza",
         where = "Booty Bay",
-        text = "Sundays, 2 to 4 pm region time. Catch Speckled Tastyfish; the first to finish win"
+        text = "Sundays, 2 to 4 pm server time. Catch Speckled Tastyfish; the first to finish win"
             .. " prizes.",
     },
     {
         kind = "camp",
         minSkill = 300,
         itemID = 279966, -- Fishing Hut
+        knownSpell = 1262998,
         text = "Rare fish for an hour by a campfire. Nobody seems sure yet where its blueprint"
             .. " comes from.",
     },
 }
 
--- When the Extravaganza starts, in realm time: day of the week (1 is
--- Sunday, as the game counts), hour and how long it runs, in minutes.
+-- When the Extravaganza starts: day of the week (1 is Sunday, as the game
+-- counts), hour and how long it runs, in minutes. Guides give the time
+-- without saying which clock it keeps; the page counts down by the
+-- server's, which is our best guess.
 Progression.extravaganza = { weekday = 1, hour = 14, minutes = 120 }
