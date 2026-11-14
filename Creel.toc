@@ -1,0 +1,40 @@
+## Interface: 16001
+## Title: Creel
+## Notes: A fishing log and one-key cast. A calm panel with each catch, its worth and a tip, and a book of every fish you've caught and where.
+## Version: 0.1.0
+## Author: Flight Path Labs
+## SavedVariables: CreelDB
+## OptionalDeps: Goldwise
+## AddonCompartmentFunc: Creel_OnAddonCompartmentClick
+## X-License: MIT
+
+# Load order matters: each group only uses what the groups above it define.
+
+Core\Init.lua
+Core\Database.lua
+Core\CVars.lua
+
+Data\Catches.lua
+Data\Lures.lua
+Data\Uses.lua
+Data\Tips.lua
+
+Fishing\State.lua
+Fishing\Spots.lua
+Fishing\Values.lua
+Fishing\Log.lua
+Fishing\Casting.lua
+Fishing\Sound.lua
+Fishing\Trivia.lua
+
+UI\Kit.lua
+UI\Tooltip.lua
+UI\Panel.lua
+UI\Book.lua
+UI\BookCollection.lua
+UI\BookPlaces.lua
+UI\BookTrips.lua
+UI\BookEarnings.lua
+UI\MapPins.lua
+UI\Setup.lua
+UI\Settings.lua

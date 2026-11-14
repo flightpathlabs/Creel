@@ -1,0 +1,37 @@
+name: Something went wrong
+description: An error, a cast or reel that didn't happen, or a catch that was counted wrong.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected to see instead.
+      placeholder: I pressed my fishing key at the splash and the bobber stayed in the water.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: What were you doing?
+      description: Where you were fishing, which way you cast (key or double right-click), and whether anything was targeted.
+    validations:
+      required: false
+
+  - type: textarea
+    id: error
+    attributes:
+      label: An error message, if the game showed one
+      description: Turn on Lua errors with `/console scriptErrors 1`, and copy the whole message here.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: addons
+    attributes:
+      label: Other fishing addons you use
+      description: Forever Fishing, Better Fishing, Fishing Buddy and the like. Two addons casting on the same key will fight.
+    validations:
+      required: false
