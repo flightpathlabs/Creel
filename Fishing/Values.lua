@@ -119,7 +119,12 @@ hooksecurefunc(C_Container, "UseContainerItem", function(bag, slot)
         return
     end
     local info = C_Container.GetContainerItemInfo(bag, slot)
-    local itemID = info and ns.Readable(info.itemID)
+    -- A locked item is one whose sale is already on its way; a second
+    -- right-click on it mustn't count it again.
+    if not info or info.isLocked then
+        return
+    end
+    local itemID = ns.Readable(info.itemID)
     if itemID and Values.Counts(itemID) then
         local count = ns.Readable(info.stackCount) or 1
         AddSale("vendor", itemID, (Values.Vendor(itemID) or 0) * count)
@@ -128,13 +133,20 @@ end)
 
 -- Auction mail names the item but not its ID, so names are matched against
 -- the counted items' names as the client knows them.
+-- The second return is true when some names weren't loaded yet, so a
+-- miss might only mean "not yet".
 local function ItemByName(name)
+    local unsure = false
     for itemID in pairs(Counted()) do
-        if C_Item.GetItemNameByID(itemID) == name then
+        local known = C_Item.GetItemNameByID(itemID)
+        if known == name then
             return itemID
+        elseif not known then
+            unsure = true
+            C_Item.RequestLoadItemDataByID(itemID)
         end
     end
-    return nil
+    return nil, unsure
 end
 
 local function SeenMail()
@@ -146,6 +158,9 @@ end
 ns.OnEvent("MAIL_INBOX_UPDATE", function()
     local seen = SeenMail()
     local now = time()
+    -- Two lots of the same thing sold for the same price in the same hour
+    -- look alike, so each look-alike in this inbox gets its own number.
+    local alike = {}
     for index = 1, GetInboxNumItems() do
         local invoiceType, itemName, _, bid, _, _, consignment = GetInboxInvoiceInfo(index)
         if invoiceType == "seller" and itemName and bid then
@@ -156,15 +171,21 @@ ns.OnEvent("MAIL_INBOX_UPDATE", function()
             -- the neighbouring hours are checked too.
             local daysLeft = select(7, GetInboxHeaderInfo(index)) or 0
             local hour = math.floor((now + daysLeft * ns.SECONDS_PER_DAY) / 3600 + 0.5)
+            local base = ("%s:%d"):format(itemName, bid)
+            alike[base] = (alike[base] or 0) + 1
             local function Key(h)
-                return ("%s:%d:%d"):format(itemName, bid, h)
+                return ("%s:%d:%d"):format(base, h, alike[base])
             end
             local key = Key(hour)
             if not (seen[key] or seen[Key(hour - 1)] or seen[Key(hour + 1)]) then
-                seen[key] = now
-                local itemID = ItemByName(itemName)
+                -- A name the client hasn't loaded yet can't be matched; the
+                -- mail is left unseen so the next look at the inbox counts it.
+                local itemID, unsure = ItemByName(itemName)
                 if itemID then
+                    seen[key] = now
                     AddSale("auction", itemID, bid - (consignment or 0))
+                elseif not unsure then
+                    seen[key] = now
                 end
             end
         end

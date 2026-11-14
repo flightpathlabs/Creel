@@ -44,7 +44,7 @@ castButton:RegisterForClicks("AnyUp", "AnyDown")
 castButton:SetAttribute(
     "_onstate-combat",
     [[
-    if newstate == "1" then
+    if newstate == 1 or newstate == "1" then
         self:ClearBindings()
     end
     ]]
@@ -53,8 +53,9 @@ RegisterStateDriver(castButton, "combat", "[combat] 1; 0")
 
 -- The double-click binding is good for one click. Letting go of it from
 -- inside the click means it's gone even if combat started in between. Only
--- on the release: the cast itself happens on the release (see
--- SetDoubleClickMode), and clearing on the press would swallow it.
+-- on the release: the cast itself happens on the release for the
+-- double-click (see Casting.Apply), and clearing on the press would
+-- swallow it.
 SecureHandlerWrapScript(
     castButton,
     "OnClick",
@@ -72,12 +73,36 @@ SecureHandlerWrapScript(
 
 -- The lure button sits on the panel (placed with Casting.PlaceLureButton).
 -- It puts a lure on the pole when the player clicks it, never otherwise.
-local lureButton = CreateFrame("Button", "CreelLureButton", UIParent, "SecureActionButtonTemplate")
+local lureButton = CreateFrame(
+    "Button",
+    "CreelLureButton",
+    UIParent,
+    "SecureActionButtonTemplate, SecureHandlerStateTemplate"
+)
 lureButton:SetSize(20, 20)
 lureButton:Hide()
+
+-- The panel can hide in combat but this button can't be hidden from addon
+-- code then, and an invisible button would sit on screen catching clicks.
+-- So it hides itself as combat starts, and comes back afterwards if the
+-- panel still wants it (the creel-wanted attribute, set out of combat).
+lureButton:SetAttribute(
+    "_onstate-combat",
+    [[
+    if newstate == 1 or newstate == "1" then
+        self:Hide()
+    elseif self:GetAttribute("creel-wanted") then
+        self:Show()
+    end
+    ]]
+)
+RegisterStateDriver(lureButton, "combat", "[combat] 1; 0")
 lureButton:SetAttribute("type", "item")
 lureButton:SetAttribute("target-slot", MAIN_HAND)
 lureButton:RegisterForClicks("LeftButtonUp")
+-- Only the release is registered, so the button mustn't wait for a press
+-- when the player has "cast on key down" on.
+lureButton:SetAttribute("useOnKeyDown", false)
 Casting.lureButton = lureButton
 
 -- Work that touches secure frames waits until combat is over.
@@ -130,8 +155,10 @@ function Casting.Apply()
 
         -- The cast fires on the release for the double-click, because the
         -- binding only exists from the second press onwards. For a key it
-        -- follows the player's own "cast on key down" setting.
-        castButton:SetAttribute("useOnKeyDown", settings.castStyle == "double" and false or nil)
+        -- fires on the press, whatever the player's "cast on key down"
+        -- setting: after a reel the key is pointed back at this button
+        -- while still held, and its release mustn't cast again.
+        castButton:SetAttribute("useOnKeyDown", settings.castStyle ~= "double")
 
         if state.spellID then
             castButton:SetAttribute("spell", state.spellID)
@@ -160,7 +187,7 @@ function Casting.KeyAction()
     if settings.castStyle ~= "key" or #Keys() == 0 or not state.hasPole then
         return nil
     end
-    if InCombatLockdown() then
+    if ns.InCombat() then
         return nil
     end
     if state.lineOut and settings.reelWithKey then
@@ -227,7 +254,7 @@ local function CanDoubleClick()
         and state.hasPole
         and state.spellID
         and not state.lineOut
-        and not InCombatLockdown()
+        and not ns.InCombat()
         and not IsMouseButtonDown("LeftButton")
         and not (LootFrame and LootFrame:IsShown())
         and GetTime() - lastCastAt > LOCKOUT
@@ -361,7 +388,9 @@ end
 ---@param shown boolean
 function Casting.ShowLureButton(shown)
     OutOfCombat("showLure", function()
-        lureButton:SetShown(shown and ns.State.hasPole)
+        local wanted = shown and ns.State.hasPole or false
+        lureButton:SetAttribute("creel-wanted", wanted)
+        lureButton:SetShown(wanted)
     end)
 end
 

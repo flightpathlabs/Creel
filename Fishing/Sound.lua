@@ -45,16 +45,27 @@ local function ShouldBeQuiet()
     local state = ns.State
     return ns.settings.quiet
         and state.hasPole
-        and not InCombatLockdown()
+        and not ns.InCombat()
         and (state.lineOut or lingerTimer ~= nil)
 end
+
+-- Settings the player has changed back themselves while quiet was on. For
+-- the rest of the session Creel leaves those alone, so their choice
+-- doesn't last only until the next cast.
+local spared = {}
+
+ns.Listen("CVAR_TAKEN_BACK", function(name)
+    spared[name:lower()] = true
+end)
 
 local function Update()
     if ShouldBeQuiet() then
         for _, name in ipairs(SILENCED) do
-            ns.CVars.Hold(OWNER, name, 0)
+            if not spared[name:lower()] then
+                ns.CVars.Hold(OWNER, name, 0)
+            end
         end
-        if ns.settings.splashBoost then
+        if ns.settings.splashBoost and not spared.sound_sfxvolume then
             local current = tonumber(C_CVar.GetCVar("Sound_SFXVolume")) or 1
             ns.CVars.Hold(OWNER, "Sound_SFXVolume", math.max(current, ns.settings.splashBoost))
         end
@@ -74,6 +85,8 @@ end
 ---@param on boolean
 function Sound.SetQuiet(on)
     ns.settings.quiet = on and true or false
+    -- Asking again is a fresh start: whatever was spared is muted again.
+    wipe(spared)
     Update()
 end
 
@@ -107,13 +120,12 @@ end)
 ns.OnEvent("PLAYER_REGEN_DISABLED", Update)
 ns.OnEvent("PLAYER_REGEN_ENABLED", Update)
 
--- A new splash level, or a change to what's quiet, takes effect at once.
--- Letting go first matters: the boost only ever raises the volume from
--- where it stands, and while held, where it stands is the old boost.
+-- A new splash level takes effect at once. Only the effects volume is let
+-- go first: the boost only ever raises the volume from where it stands,
+-- and while held, where it stands is the old boost. Letting go of the rest
+-- would start the music up for a moment on every settings change.
 ns.Listen("SETTINGS_CHANGED", function()
-    if ns.CVars.IsHolding(OWNER) then
-        ns.CVars.Release(OWNER)
-    end
+    ns.CVars.ReleaseOne(OWNER, "Sound_SFXVolume")
     Update()
 end)
 

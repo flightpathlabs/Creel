@@ -122,6 +122,24 @@ function ns.Send(message, ...)
     end
 end
 
+-- InCombatLockdown() is still false while PLAYER_REGEN_DISABLED is being
+-- handed out, so anything deciding "are we fighting?" from inside that
+-- event would get it wrong. These handlers are registered before any
+-- other file's, so the flag is right by the time the rest hear the event.
+local inCombat = false
+ns.OnEvent("PLAYER_REGEN_DISABLED", function()
+    inCombat = true
+end)
+ns.OnEvent("PLAYER_REGEN_ENABLED", function()
+    inCombat = false
+end)
+
+--- Whether the player is in combat, including the moment it starts.
+---@return boolean
+function ns.InCombat()
+    return inCombat or InCombatLockdown()
+end
+
 --- A value the client may hand back as secret is treated as unknown.
 function ns.Readable(value)
     if issecretvalue and issecretvalue(value) then

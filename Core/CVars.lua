@@ -57,12 +57,32 @@ end
 function CVars.Release(owner)
     for name, entry in pairs(Saved()) do
         if entry.owners[owner] then
-            entry.owners[owner] = nil
-            if next(entry.owners) == nil then
-                Write(name, entry.value)
-                Saved()[name] = nil
-            end
+            CVars.ReleaseOne(owner, name)
         end
+    end
+end
+
+--- Gives back one setting owner was holding.
+---@param owner string
+---@param name string
+function CVars.ReleaseOne(owner, name)
+    local entry = Saved()[name]
+    if not entry or not entry.owners[owner] then
+        return
+    end
+    -- The player's value goes back before the record of it is dropped, so
+    -- if writing fails the next login still knows what to restore.
+    local others = false
+    for other in pairs(entry.owners) do
+        if other ~= owner then
+            others = true
+        end
+    end
+    if not others then
+        Write(name, entry.value)
+        Saved()[name] = nil
+    else
+        entry.owners[owner] = nil
     end
 end
 

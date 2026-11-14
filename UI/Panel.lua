@@ -451,7 +451,7 @@ local function StatusOf()
     if not state.spellID then
         return "Learn Fishing at a trainer", "idle"
     end
-    if InCombatLockdown() then
+    if ns.InCombat() then
         if byKey then
             return ("Combat · %s is yours again"):format(shownKey), "combat"
         end

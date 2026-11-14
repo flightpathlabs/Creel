@@ -59,7 +59,12 @@ end
 local function ReadProfession()
     local fishing = select(4, GetProfessions())
     if not fishing then
+        local had = State.spellID or State.rank
         State.spellID, State.rank, State.maxRank, State.modifier = nil, nil, nil, 0
+        if had then
+            ns.Send("SPELL_CHANGED", nil)
+            ns.Send("SKILL_CHANGED", nil, nil, 0)
+        end
         return
     end
 
@@ -278,8 +283,35 @@ end)
 
 ns.OnEvent("PLAYER_LOGOUT", function()
     -- Logging out closes the trip, but only the clock: the saved record
-    -- is already up to date.
+    -- is already up to date. A trip with nothing caught is dropped here
+    -- directly rather than through EndTrip, whose listeners would start
+    -- changing settings again after they've been put back.
+    local trip = State.trip
+    if not trip then
+        return
+    end
+    trip.endAt = Now()
+    if trip.caught == 0 then
+        local book = ns.Book()
+        for index, entry in ipairs(book.trips) do
+            if entry == trip then
+                table.remove(book.trips, index)
+                book.totals.trips = math.max(0, (book.totals.trips or 1) - 1)
+                break
+            end
+        end
+    end
+end)
+
+-- Switching books, or emptying one, mid-trip: the open trip belongs to
+-- the book it started in, and the next cast starts a new one in the book
+-- now in use.
+ns.Listen("BOOK_CHANGED", function()
     if State.trip then
-        State.trip.endAt = Now()
+        local trip = State.trip
+        State.trip = nil
+        lastCastAt = nil
+        trip.endAt = Now()
+        ns.Send("TRIP_ENDED", trip)
     end
 end)

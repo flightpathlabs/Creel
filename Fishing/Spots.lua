@@ -129,11 +129,22 @@ local function Repoint(book, fromID, toID)
         end
     end
     for _, trip in ipairs(book.trips) do
-        for index, id in ipairs(trip.spots) do
-            if id == fromID then
-                trip.spots[index] = toID
+        -- A trip that fished both spots would list the survivor twice.
+        local had = tContains(trip.spots, toID)
+        for index = #trip.spots, 1, -1 do
+            if trip.spots[index] == fromID then
+                if had then
+                    table.remove(trip.spots, index)
+                else
+                    trip.spots[index] = toID
+                    had = true
+                end
             end
         end
+    end
+    local rarest = book.records.rarest
+    if rarest and rarest.spotID == fromID then
+        rarest.spotID = toID
     end
 end
 
