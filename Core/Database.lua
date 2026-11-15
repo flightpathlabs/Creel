@@ -129,6 +129,13 @@ function ns.ShownVerdict()
     return ns.Spots.Verdict()
 end
 
+--- Roughly how many more catches the next skill point takes: see
+--- Log.ToNextPoint.
+---@return number|nil
+function ns.ShownToNextPoint()
+    return ns.Log.ToNextPoint()
+end
+
 --- Switches the current character between the shared book and one of its
 --- own. Nothing is moved or merged; each book keeps what's in it.
 ---@param own boolean

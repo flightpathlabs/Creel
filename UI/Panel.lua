@@ -718,8 +718,9 @@ local function TripText()
 end
 
 local function SpotText()
-    local state = ns.State
-    if not state.spellID then
+    -- Without Fishing there's nothing to say about the water, unless the
+    -- demo is showing an angler who has it.
+    if not ns.State.spellID and not beforeDemo then
         return ""
     end
     local verdict, spot, reason = ns.ShownVerdict()
@@ -738,7 +739,7 @@ local function SpotText()
             text = text .. SEPARATOR .. hint
         end
     else
-        local toNext = ns.Log.ToNextPoint()
+        local toNext = ns.ShownToNextPoint()
         if toNext then
             text = text .. SEPARATOR .. ("%d to +1"):format(toNext)
         end
@@ -1466,7 +1467,8 @@ local function LayOutBody()
         panel.worth:Hide()
     end
 
-    if ns.ShownTrip() then
+    -- The demo's trip can't be ended, so it has no button.
+    if ns.ShownTrip() and not beforeDemo then
         y = y + END_BUTTON_GAP
         panel.endTrip:ClearAllPoints()
         panel.endTrip:SetPoint("TOPRIGHT", body, "TOPRIGHT", -PADDING, -y)

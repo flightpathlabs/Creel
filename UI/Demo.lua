@@ -11,10 +11,11 @@ local _, ns = ...
 --
 -- Nothing is saved and nothing real is changed. Only what the interface
 -- shows is swapped: ns.ShownBook(), ns.ShownTrip(), ns.ShownTripSeconds(),
--- ns.ShownSkill() and ns.ShownVerdict() (Core/Database.lua) give the
--- invented angler while the demo is on. Everything that writes (catches,
--- casts, sales, the trip, casting and sound) goes on using the real book
--- and the real state, so fishing for real with the demo on loses nothing.
+-- ns.ShownSkill(), ns.ShownVerdict() and ns.ShownToNextPoint()
+-- (Core/Database.lua) give the invented angler while the demo is on.
+-- Everything that writes (catches, casts, sales, the trip, casting and
+-- sound) goes on using the real book and the real state, so fishing for
+-- real with the demo on loses nothing.
 -- It all goes back when the demo is switched off or the interface is
 -- reloaded, and anything that changes which book is in use, or empties
 -- it, switches the demo off first.
@@ -213,6 +214,8 @@ local TRIP_WATER = #WATERS
 local TRIP_CATCHES = { [6362] = 58, [4603] = 37, [6359] = 19, [6358] = 11, [7973] = 4, [21164] = 2 }
 local TRIP_SKILL_FROM = RANK - 3
 local TRIP_MINUTES = 42
+-- Catches to the next skill point, about what it takes at 187.
+local TO_NEXT_POINT = 4
 
 -- The latest catch on the card when the demo starts.
 local LATEST = 4603 -- Raw Spotted Yellowtail
@@ -582,6 +585,7 @@ local function TurnOn()
     real.ShownTripSeconds = ns.ShownTripSeconds
     real.ShownSkill = ns.ShownSkill
     real.ShownVerdict = ns.ShownVerdict
+    real.ShownToNextPoint = ns.ShownToNextPoint
 
     ns.ShownBook = function()
         return book
@@ -598,6 +602,9 @@ local function TurnOn()
     -- The water underfoot is the trip's, with no getaways at this skill.
     ns.ShownVerdict = function()
         return "safe", book.spots[TRIP_WATER]
+    end
+    ns.ShownToNextPoint = function()
+        return TO_NEXT_POINT
     end
     on = true
 
@@ -658,6 +665,7 @@ local function TurnOff()
     ns.ShownTripSeconds = real.ShownTripSeconds
     ns.ShownSkill = real.ShownSkill
     ns.ShownVerdict = real.ShownVerdict
+    ns.ShownToNextPoint = real.ShownToNextPoint
     book, trip = nil, nil
     if ns.Panel and ns.Panel.SetDemo then
         ns.Panel.SetDemo(false)

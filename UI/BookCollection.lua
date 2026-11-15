@@ -818,8 +818,11 @@ local function FillCard(itemID)
     y = y + math.max(CARD_ICON, card.name:GetStringHeight() + 18)
 
     local unique = fish ~= nil and not (ns.Catches and ns.Catches[itemID])
+    -- A find from the screenshot demo is made up, so it's never offered
+    -- for reporting.
+    local reportable = unique and not (ns.Demo and ns.Demo.IsOn())
     card.ribbon:SetShown(unique)
-    card.report:SetShown(unique)
+    card.report:SetShown(reportable)
     if unique then
         Place(card.ribbon, PART_GAP, RIBBON_HEIGHT)
     end
@@ -869,10 +872,12 @@ local function FillCard(itemID)
         if find.character then
             Pair("Caught by", BookKit.CharacterName(find.character))
         end
-        y = y + PART_GAP
-        card.report:ClearAllPoints()
-        card.report:SetPoint("TOPLEFT", CARD_PADDING, -y)
-        y = y + card.report:GetHeight()
+        if reportable then
+            y = y + PART_GAP
+            card.report:ClearAllPoints()
+            card.report:SetPoint("TOPLEFT", CARD_PADDING, -y)
+            y = y + card.report:GetHeight()
+        end
     end
 
     -- Where it's been caught best.
