@@ -665,6 +665,18 @@ local function UpdateTitle()
     else
         window:SetTitle(TITLE)
     end
+
+    -- While the demo is on, a small tag under the window's corner, outside
+    -- it so a screenshot can crop it away.
+    local demo = ns.Demo and ns.Demo.IsOn()
+    if demo and not window.demoTag then
+        window.demoTag = Kit.Text(window, "GameFontDisableSmall", "RIGHT")
+        window.demoTag:SetPoint("TOPRIGHT", window, "BOTTOMRIGHT", -6, -4)
+        window.demoTag:SetText("Demo data")
+    end
+    if window.demoTag then
+        window.demoTag:SetShown(demo == true)
+    end
 end
 
 --- Redraws the tab that's showing, if the window is open.
@@ -841,6 +853,13 @@ function BookWindow.IsShown()
 end
 
 -- Whatever changes what's in the book redraws the tab that's showing.
-for _, message in ipairs({ "CATCH", "TRIP_ENDED", "SALE", "BOOK_CHANGED", "SETTINGS_CHANGED" }) do
+for _, message in ipairs({
+    "CATCH",
+    "TRIP_ENDED",
+    "SALE",
+    "BOOK_CHANGED",
+    "SETTINGS_CHANGED",
+    "DEMO_CHANGED",
+}) do
     ns.Listen(message, ScheduleRefresh)
 end

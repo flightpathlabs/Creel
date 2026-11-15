@@ -57,6 +57,7 @@ end
 
 ns.Listen("CATCH", Forget)
 ns.Listen("BOOK_CHANGED", Forget)
+ns.Listen("DEMO_CHANGED", Forget)
 
 if TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, AddCatchLine)

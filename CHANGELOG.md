@@ -12,6 +12,15 @@ First version.
   trip and in all, whether fish get away at this spot, the catch card with
   vendor and auction values and a tip, the trip's tally and worth.
 - Quiet while fishing, with your own sound settings always put back.
-- The Fishing Book: Collection, Places, Trips and Earnings.
+- The Fishing Book: Collection, Places, Trips, Earnings and Next.
+- Next: where your next rank comes from, the nearest trainer, where to fish
+  at your skill and what's worth doing now, with map pins.
+- Recipe cards: how to make anything a catch turns into, what it costs and
+  whether it's worth it, with a link into Goldwise's crafting tree.
+- Unique finds: catches Creel doesn't know about get their own section, a
+  grand moment with the epic-loot sound, and a report to copy for the
+  issue form. Valuable catches play the auction house's sound.
 - Past catch spots on the world map, if you turn it on.
 - A line on fish tooltips: how many you've caught and where best.
+- A minimap button.
+- A demo mode for screenshots: `/creel demo`.

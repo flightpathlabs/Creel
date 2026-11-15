@@ -44,3 +44,4 @@ UI\MapPins.lua
 UI\Setup.lua
 UI\Settings.lua
 UI\MinimapButton.lua
+UI\Demo.lua

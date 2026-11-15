@@ -1657,7 +1657,14 @@ end
 
 -- What others call ----------------------------------------------------------------
 
+-- While the demo (UI/Demo.lua) borrows the panel: what was on the card
+-- before, to put back afterwards. Nil the rest of the time.
+local beforeDemo
+
 local function ShouldShow()
+    if beforeDemo then
+        return true
+    end
     local setting = ns.settings.showPanel
     if override ~= nil and setting == overriddenSetting then
         return override
@@ -1699,6 +1706,31 @@ function Panel.Toggle()
     end
     override = not panel:IsShown()
     overriddenSetting = ns.settings.showPanel
+    Panel.UpdateVisibility()
+end
+
+--- For the demo: shows the panel whatever the setting says, with a small
+--- "Demo data" tag under its corner, and clears the card. Switched off,
+--- the card has what it had before and the setting rules again.
+---@param on boolean
+function Panel.SetDemo(on)
+    if not panel then
+        return
+    end
+    if on and not beforeDemo then
+        beforeDemo = { latest = latest, lastTrip = lastTrip }
+        latest, lastTrip = nil, nil
+    elseif not on and beforeDemo then
+        latest, lastTrip = beforeDemo.latest, beforeDemo.lastTrip
+        beforeDemo = nil
+    end
+    if not panel.demoTag then
+        -- Outside the frame, so a screenshot can crop it away.
+        panel.demoTag = Kit.Text(panel, "GameFontDisableSmall", "RIGHT")
+        panel.demoTag:SetPoint("TOPRIGHT", panel, "BOTTOMRIGHT", -4, -2)
+        panel.demoTag:SetText("Demo data")
+    end
+    panel.demoTag:SetShown(beforeDemo ~= nil)
     Panel.UpdateVisibility()
 end
 

@@ -551,6 +551,9 @@ SlashCmdList.CREEL = function(message)
         OpenBook()
     elseif word == "setup" then
         ns.Setup.Open()
+    elseif (word == "demo" or word:match("^demo%s")) and ns.Demo then
+        -- For screenshots: "/creel demo", then "catch", "find" or "worth".
+        ns.Demo.Command(strtrim(word:sub(5)))
     else
         ns.OpenOptions()
     end

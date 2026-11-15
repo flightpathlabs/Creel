@@ -321,6 +321,6 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_WorldMap", function()
     end
 end)
 
-for _, message in ipairs({ "CATCH", "BOOK_CHANGED", "SETTINGS_CHANGED" }) do
+for _, message in ipairs({ "CATCH", "BOOK_CHANGED", "SETTINGS_CHANGED", "DEMO_CHANGED" }) do
     ns.Listen(message, MapPins.Refresh)
 end
