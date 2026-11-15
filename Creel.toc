@@ -9,6 +9,7 @@
 ## AddonCompartmentFunc: Creel_OnAddonCompartmentClick
 ## X-License: MIT
 ## X-Curse-Project-ID: 1806505
+## X-Wago-ID: XKqEOoKy
 
 # Load order matters: each group only uses what the groups above it define.
 
