@@ -77,7 +77,9 @@ end
 
 local function SkillText(trip)
     if trip.skillFrom and trip.skillTo and trip.skillTo > trip.skillFrom then
-        return ("skill %d → %d"):format(trip.skillFrom, trip.skillTo)
+        -- Words rather than an arrow: the game's font has no arrow, and
+        -- draws a box in its place.
+        return ("skill %d to %d"):format(trip.skillFrom, trip.skillTo)
     elseif trip.skillTo or trip.skillFrom then
         return ("skill %d"):format(trip.skillTo or trip.skillFrom)
     end

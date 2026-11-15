@@ -199,12 +199,13 @@ function Casting.KeyAction()
     return "cast"
 end
 
---- The chosen key, the way the game writes it ("F", "Shift-F"). The
+--- The chosen key, the way the game writes it on an action button: short,
+--- so "Num Pad +" is "N+" and the panel's status line still fits. The
 --- second key stands in when only that one is set.
 ---@return string|nil
 function Casting.KeyText()
     local key = ns.settings.castKey or ns.settings.castKey2
-    return key and GetBindingText(key) or nil
+    return key and GetBindingText(key, true) or nil
 end
 
 -- While the line is out the interact action has to find the bobber, so

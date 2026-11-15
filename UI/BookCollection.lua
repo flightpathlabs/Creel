@@ -612,7 +612,7 @@ local function FillUseRow(row, fromID, use, indent)
     if (use.needs or 1) > 1 or (use.count or 1) > 1 then
         table.insert(
             notes,
-            Kit.Colored(("%d → %d"):format(use.needs or 1, use.count or 1), Kit.MUTED)
+            Kit.Colored(("%d into %d"):format(use.needs or 1, use.count or 1), Kit.MUTED)
         )
     end
     local verdict = Verdict(fromID, use)
