@@ -1,7 +1,8 @@
 <p align="center"><img src="docs/images/creel-logo.png" alt="Creel" width="600"></p>
 
-> **Not released yet.** Creel is being tested on the `dev` branch, and
-> isn't on CurseForge or Wago yet.
+Install it from [CurseForge](https://www.curseforge.com/wow/addons/creel)
+or [Wago](https://addons.wago.io/addons/creel), or with any addon manager
+that reads them.
 
 **A fishing log and one-key cast for World of Warcraft: Forever.**
 
