@@ -23,6 +23,92 @@ local _, ns = ...
 --   forever     true for recipes the original game didn't have
 
 ns.Uses = {
+    [3820] = { -- Stranglekelp
+        {
+            spell = 426607,
+            makes = 210708,
+            count = 1,
+            profession = "alchemy",
+            learn = 90,
+            yellow = 90,
+            grey = 110,
+            needs = 5,
+            others = { [3369] = 5, [3372] = 1, [11083] = 1 },
+            forever = true,
+        }, -- Elixir of Coalesced Regret
+        {
+            spell = 7179,
+            makes = 5996,
+            count = 1,
+            profession = "alchemy",
+            yellow = 120,
+            grey = 160,
+            needs = 1,
+            others = { [3371] = 1, [6370] = 2 },
+        }, -- Draught of Water Breathing
+        {
+            spell = 3173,
+            makes = 3385,
+            count = 1,
+            profession = "alchemy",
+            yellow = 145,
+            grey = 185,
+            needs = 1,
+            others = { [785] = 1, [3371] = 1 },
+        }, -- Lesser Mana Potion
+        {
+            spell = 6624,
+            makes = 5634,
+            count = 1,
+            profession = "alchemy",
+            learn = 150,
+            yellow = 175,
+            grey = 215,
+            needs = 1,
+            others = { [3372] = 1, [6370] = 2 },
+        }, -- Free Action Potion
+        {
+            spell = 3177,
+            makes = 3389,
+            count = 1,
+            profession = "alchemy",
+            yellow = 155,
+            grey = 195,
+            needs = 1,
+            others = { [3355] = 1, [3372] = 1 },
+        }, -- Elixir of Lesser Defense
+        {
+            spell = 3452,
+            makes = 3827,
+            count = 1,
+            profession = "alchemy",
+            yellow = 180,
+            grey = 220,
+            needs = 1,
+            others = { [3356] = 1, [3372] = 1 },
+        }, -- Mana Potion
+        {
+            spell = 7259,
+            makes = 6052,
+            count = 1,
+            profession = "alchemy",
+            learn = 190,
+            yellow = 210,
+            grey = 250,
+            needs = 1,
+            others = { [3357] = 1, [3372] = 1 },
+        }, -- Nature Protection Potion
+        {
+            spell = 11449,
+            makes = 8949,
+            count = 1,
+            profession = "alchemy",
+            yellow = 205,
+            grey = 245,
+            needs = 1,
+            others = { [3372] = 1, [3821] = 1 },
+        }, -- Elixir of Agility
+    },
     [4603] = { -- Raw Spotted Yellowtail
         {
             spell = 18238,
@@ -486,6 +572,67 @@ ns.Uses = {
             needs = 1,
             others = { [2692] = 1 },
         }, -- Sagefish Delight
+    },
+    [3385] = { -- Lesser Mana Potion
+        {
+            spell = 1255096,
+            makes = 252452,
+            count = 1,
+            profession = "leatherworking",
+            learn = 135,
+            yellow = 155,
+            grey = 175,
+            needs = 2,
+            others = { [4265] = 1, [11083] = 2 },
+            forever = true,
+        }, -- Mystic Heavy Armor Kit
+    },
+    [3389] = { -- Elixir of Lesser Defense
+        {
+            spell = 3770,
+            makes = 4253,
+            count = 1,
+            profession = "leatherworking",
+            yellow = 135,
+            grey = 160,
+            needs = 2,
+            others = { [2319] = 4, [2321] = 2, [3182] = 2, [4233] = 2 },
+        }, -- Toughened Leather Gloves
+    },
+    [3827] = { -- Mana Potion
+        {
+            spell = 3861,
+            makes = 4326,
+            count = 1,
+            profession = "tailoring",
+            yellow = 170,
+            grey = 200,
+            needs = 1,
+            others = { [4291] = 1, [4305] = 4 },
+        }, -- Long Silken Cloak
+        {
+            spell = 8802,
+            makes = 7063,
+            count = 1,
+            profession = "tailoring",
+            learn = 170,
+            yellow = 185,
+            grey = 215,
+            needs = 2,
+            others = { [2604] = 4, [4291] = 1, [4305] = 8, [7068] = 4 },
+        }, -- Crimson Silk Robe
+        {
+            spell = 1255074,
+            makes = 252462,
+            count = 1,
+            profession = "leatherworking",
+            learn = 185,
+            yellow = 205,
+            grey = 225,
+            needs = 2,
+            others = { [8173] = 1, [11137] = 2 },
+            forever = true,
+        }, -- Mystic Thick Armor Kit
     },
     [5498] = { -- Small Lustrous Pearl
         {
@@ -1602,6 +1749,18 @@ ns.Uses = {
             others = { [3713] = 4 },
             forever = true,
         }, -- Clam Linguine
+    },
+    [8949] = { -- Elixir of Agility
+        {
+            spell = 14930,
+            makes = 8217,
+            count = 1,
+            profession = "leatherworking",
+            yellow = 220,
+            grey = 240,
+            needs = 1,
+            others = { [4291] = 4, [4304] = 12, [8172] = 1 },
+        }, -- Quickdraw Quiver
     },
     [12808] = { -- Essence of Undeath
         {

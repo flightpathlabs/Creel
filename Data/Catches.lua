@@ -174,10 +174,13 @@ ns.Catches = {
     [17057] = { kind = "junk" }, -- Shiny Fish Scales
     [17058] = { kind = "junk" }, -- Fish Oil
 
-    -- Everything else: water from the elemental pools, and the eel only the
-    -- Argent Dawn wanted
+    -- Everything else: water from the elemental pools, the eel only the
+    -- Argent Dawn wanted, and a herb. Stranglekelp is gathered from the sea
+    -- floor in the original game, but on Forever it comes up on the line
+    -- often enough to count as a catch.
     [7070] = { kind = "other" }, -- Elemental Water
     [7079] = { kind = "other" }, -- Globe of Water
     [7080] = { kind = "other" }, -- Essence of Water
     [13757] = { kind = "other" }, -- Lightning Eel
+    [3820] = { kind = "other" }, -- Stranglekelp
 }
