@@ -117,3 +117,12 @@ with or endorsed by Blizzard Entertainment.
 
 AI tooling is used openly in making this addon alongside hand-written
 code; everything is reviewed and tested in game before release.
+
+## More from Flight Path Labs
+
+Small addons for World of Warcraft: Forever, all at
+[github.com/flightpathlabs](https://github.com/flightpathlabs).
+
+- [Gold Wise](https://github.com/flightpathlabs/GoldWise): auction prices for what you carry, and what's worth doing with it.
+- [Temper](https://github.com/flightpathlabs/Temper): how your character fights, and whether a change helped. Coming soon.
+- [Encore](https://github.com/flightpathlabs/Encore): helpers for enchanters. Coming soon.
