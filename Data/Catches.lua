@@ -176,8 +176,8 @@ ns.Catches = {
 
     -- Everything else: water from the elemental pools, the eel only the
     -- Argent Dawn wanted, and a herb. Stranglekelp is gathered from the sea
-    -- floor in the original game, but on Forever it comes up on the line
-    -- often enough to count as a catch.
+    -- floor in the original game. On Forever it comes up on the line now
+    -- and then: uncommon, but not rare, so a catch rather than a find.
     [7070] = { kind = "other" }, -- Elemental Water
     [7079] = { kind = "other" }, -- Globe of Water
     [7080] = { kind = "other" }, -- Essence of Water

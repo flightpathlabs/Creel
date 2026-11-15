@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Stranglekelp counts as a normal catch, since it comes up on the line
-  often on Forever. It's in the Collection, with what it's used for,
+- Stranglekelp counts as a normal catch. It's uncommon on Forever's
+  lines but not rare, so it's in the Collection, with what it's used for,
   instead of arriving as a unique find.
 - Trip records count the time after a trip's last catch. The longest trip
   could show a little short of the trip itself.
