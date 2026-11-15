@@ -11,9 +11,9 @@ local _, ns = ...
 --
 -- Nothing is saved and nothing real is changed. Only what the interface
 -- shows is swapped: ns.ShownBook(), ns.ShownTrip(), ns.ShownTripSeconds(),
--- ns.ShownSkill(), ns.ShownLevel(), ns.ShownVerdict() and
--- ns.ShownToNextPoint() (Core/Database.lua) give the invented angler while
--- the demo is on. The bags, known recipes and where the player stands stay
+-- ns.ShownSkill(), ns.ShownCooking(), ns.ShownLevel(), ns.ShownVerdict()
+-- and ns.ShownToNextPoint() (Core/Database.lua) give the invented angler
+-- while the demo is on. The bags, known recipes and where the player stands stay
 -- real.
 -- Everything that writes (catches, casts, sales, the trip, casting and
 -- sound) goes on using the real book and the real state, so fishing for
@@ -58,6 +58,9 @@ local BONUS = 25
 -- Old enough for everything up to the next rank, so the Next page asks
 -- only for skill, whatever the character taking the pictures is.
 local LEVEL = 40
+-- A cook part way through Expert, so the Next page's Cooking section has
+-- something to say.
+local COOKING, COOKING_CAP = 172, 225
 
 -- Where they've fished, in the order they got there, with the skill they
 -- had on arriving and what each water has given them. Real waters, at
@@ -395,7 +398,12 @@ local function BuildBook()
 
         book.totals.catches = book.totals.catches + spot.caught
         book.totals.seconds = book.totals.seconds + spot.seconds
-        book.totals.casts = book.totals.casts + math.floor(spot.caught * 1.16)
+        local casts = math.floor(spot.caught * 1.16)
+        book.totals.casts = book.totals.casts + casts
+        -- The casts that brought nothing, split as the trips split them.
+        local spotLost = casts - spot.caught
+        book.totals.early = (book.totals.early or 0) + math.floor(spotLost / 4)
+        book.totals.misses = (book.totals.misses or 0) + spotLost - math.floor(spotLost / 4)
 
         for itemID, count in pairs(spot.catches) do
             local fish = book.fish[itemID]
@@ -433,6 +441,11 @@ local function BuildBook()
             end
             entry.seconds = entry.caught * SECONDS_A_CATCH + math.floor(random() * 300)
             entry.casts = math.floor(entry.caught * 1.16)
+            -- Of the casts that brought nothing, most ran out and a few
+            -- were reeled in too soon.
+            local lost = entry.casts - entry.caught
+            entry.early = math.floor(lost / 4)
+            entry.misses = lost - entry.early
             entry.endAt = startAt + entry.seconds + math.floor(random() * 900)
             if entry.caught > 0 then
                 table.insert(past, entry)
@@ -466,6 +479,9 @@ local function BuildBook()
     end
     trip.seconds = TRIP_MINUTES * 60 - 95
     trip.casts = math.floor(trip.caught * 1.2)
+    trip.misses, trip.early = 3, 1
+    book.totals.misses = (book.totals.misses or 0) + trip.misses
+    book.totals.early = (book.totals.early or 0) + trip.early
 
     table.sort(past, function(a, b)
         return a.startAt > b.startAt
@@ -590,6 +606,7 @@ local function TurnOn()
     real.ShownTripSeconds = ns.ShownTripSeconds
     real.ShownSkill = ns.ShownSkill
     real.ShownLevel = ns.ShownLevel
+    real.ShownCooking = ns.ShownCooking
     real.ShownVerdict = ns.ShownVerdict
     real.ShownToNextPoint = ns.ShownToNextPoint
 
@@ -607,6 +624,9 @@ local function TurnOn()
     end
     ns.ShownLevel = function()
         return LEVEL
+    end
+    ns.ShownCooking = function()
+        return COOKING, COOKING_CAP
     end
     -- The water underfoot is the trip's, with no getaways at this skill.
     ns.ShownVerdict = function()
@@ -674,6 +694,7 @@ local function TurnOff()
     ns.ShownTripSeconds = real.ShownTripSeconds
     ns.ShownSkill = real.ShownSkill
     ns.ShownLevel = real.ShownLevel
+    ns.ShownCooking = real.ShownCooking
     ns.ShownVerdict = real.ShownVerdict
     ns.ShownToNextPoint = real.ShownToNextPoint
     book, trip = nil, nil

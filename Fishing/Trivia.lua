@@ -110,9 +110,16 @@ end
 local lastShown = {}
 
 --- One line for the catch card, different from last time where possible.
+--- A catch that would still teach the player Cooking says so every other
+--- time, so the hint isn't lost in the mix but doesn't crowd it out.
 ---@param itemID number
 ---@return string|nil
 function Trivia.Pick(itemID)
+    local cooking = ns.Cooking and ns.Cooking.TipFor(itemID)
+    if cooking and lastShown[itemID] ~= cooking then
+        lastShown[itemID] = cooking
+        return cooking
+    end
     local lines = Trivia.Lines(itemID)
     if #lines == 0 then
         return nil

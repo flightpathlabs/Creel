@@ -40,8 +40,8 @@ local PIN_ROOM = 28
 local CATCH_ICON = 28
 local CATCH_GAP = 6
 
--- Cooking lines in "Worth doing", at most.
-local COOKING_LINES = 2
+-- Recipes in "Cooking with your catches", at most.
+local COOKING_ROWS = 4
 
 -- Under this many yards the trainer is as good as here.
 local NEARBY = 100
@@ -254,33 +254,8 @@ local function BestOwned(skill)
     return pole, lure
 end
 
--- A recipe that takes one of a fish and nothing else, for each of the
--- waters' fish that has one.
-local function CookingEntries(bracket)
-    local list = {}
-    for _, fishID in ipairs(bracket and bracket.catches or {}) do
-        for _, use in ipairs((ns.Uses or {})[fishID] or {}) do
-            if use.profession == "cooking" and use.needs == 1 and not use.others and use.makes then
-                local fish = BookKit.Name(fishID) or "the raw fish"
-                local text
-                if use.learn then
-                    text = ("Cook it from %s once your Cooking reaches %d."):format(fish, use.learn)
-                else
-                    text = ("Cook it from %s."):format(fish)
-                end
-                table.insert(list, { itemID = use.makes, text = text, fromID = fishID, use = use })
-                break
-            end
-        end
-        if #list >= COOKING_LINES then
-            break
-        end
-    end
-    return list
-end
-
---- What's worth doing now, in the data's order, with the cooking last.
-local function WorthDoing(skill, level, side, bracket)
+--- What's worth doing now, in the data's order.
+local function WorthDoing(skill, level, side)
     local entries = Data().worth or {}
     local bestPole, bestLure = BestOwned(skill)
 
@@ -310,9 +285,6 @@ local function WorthDoing(skill, level, side, bracket)
                 table.insert(list, entry)
             end
         end
-    end
-    for _, entry in ipairs(CookingEntries(bracket)) do
-        table.insert(list, entry)
     end
     return list
 end
@@ -807,10 +779,10 @@ local function FillWaters(layout, effective, side)
     return bracket
 end
 
-local function FillWorth(layout, skill, level, side, bracket)
+local function FillWorth(layout, skill, level, side)
     local section = tab.worth
     local inside = Kit.Inside(layout, section)
-    local list = WorthDoing(skill, level, side, bracket)
+    local list = WorthDoing(skill, level, side)
 
     -- The rows are refilled in place, so a recipe card opened from one
     -- would end up beside something else. It stays only if its row still
@@ -836,6 +808,161 @@ local function FillWorth(layout, skill, level, side, bracket)
     Kit.PlaceSection(layout, section, inside)
 end
 
+-- Cooking with your catches -----------------------------------------------------------
+
+-- The zone of the player's place with the most of a catch, if any.
+local function BestPlaceFor(itemID, book)
+    local best, most
+    for _, spot in pairs(book.spots or {}) do
+        local count = spot.catches and spot.catches[itemID] or 0
+        if count > 0 and (not most or count > most) then
+            best, most = spot, count
+        end
+    end
+    return best and best.zone
+end
+
+-- Up to two waters on the player's side where a catch's bracket says it
+-- bites, as "Westfall or Darkshore".
+local function WatersFor(itemID, side)
+    for _, bracket in ipairs(Data().brackets or {}) do
+        if tContains(bracket.catches or {}, itemID) then
+            local names = {}
+            for _, list in ipairs({ bracket.waters[side] or {}, bracket.waters.Both or {} }) do
+                for _, water in ipairs(list) do
+                    if #names < 2 then
+                        table.insert(names, water.name)
+                    end
+                end
+            end
+            if #names > 0 then
+                return table.concat(names, " or ")
+            end
+        end
+    end
+    return nil
+end
+
+-- Where the catch comes from, as a sentence.
+local function CatchLine(suggestion, book, side)
+    local fromID = suggestion.fromID
+    if ns.Cooking.FromClams(fromID) then
+        return "From the meat in clams, which come up on the line."
+    end
+    local fish = BookKit.Name(fromID) or "the raw fish"
+    if suggestion.reach == "caught" then
+        local zone = BestPlaceFor(fromID, book)
+        if zone then
+            return ("From %s, which you've caught in %s."):format(fish, zone)
+        end
+        return ("From %s, which you've caught before."):format(fish)
+    end
+    local waters = WatersFor(fromID, side)
+    local from = ns.Cooking.BitesFrom(fromID)
+    if suggestion.reach == "now" and waters then
+        return ("From %s, which bites in %s."):format(fish, waters)
+    elseif from then
+        return ("From %s, which bites from Fishing %d."):format(fish, from)
+    end
+    return ("From %s."):format(fish)
+end
+
+-- How to learn the recipe, as a sentence, and the place to go if there
+-- is one.
+local function RecipeLine(suggestion, side)
+    if suggestion.known then
+        return "You know the recipe."
+    end
+    local spellID = suggestion.use.spell
+    local recipe = ns.RecipeItems and ns.RecipeItems[spellID]
+    if not recipe then
+        return "A cooking trainer teaches it."
+    end
+    local vendor = Nearest(ns.Cooking.Vendors(spellID, side))
+    if vendor then
+        local price = recipe.price > 0 and (", for %s"):format(ns.Money(recipe.price)) or ""
+        return ("Buy the recipe from %s in %s%s."):format(vendor.name, vendor.place, price),
+            PlaceOf(vendor)
+    end
+    if ns.Cooking.SoldAnywhere(spellID) then
+        return "The recipe isn't sold on your side, that we know of."
+    end
+    local name = BookKit.Name(recipe.item) or "The recipe"
+    local entry = Data().cookingRecipes and Data().cookingRecipes[spellID]
+    if entry and entry.note then
+        return ("%s %s"):format(name, entry.note)
+    end
+    return ("%s isn't sold anywhere we know of yet."):format(name)
+end
+
+local function CookingEntry(suggestion, book, side)
+    local use = suggestion.use
+    local catchLine = CatchLine(suggestion, book, side)
+    local recipeLine, place = RecipeLine(suggestion, side)
+    return {
+        itemID = use.makes,
+        where = ns.Cooking.ColourText(suggestion.colour),
+        text = catchLine .. " " .. recipeLine,
+        place = place,
+        fromID = suggestion.fromID,
+        use = use,
+    }
+end
+
+local function FillCooking(layout, side, fishing)
+    local section = tab.cooking
+    local inside = Kit.Inside(layout, section)
+    local rank, maxRank = ns.ShownCooking()
+    local book = ns.ShownBook()
+
+    local owner = ns.RecipeCard and ns.RecipeCard.Owner()
+    local before = owner and owner.use
+    section.rows:Reset()
+    section.coming:Hide()
+
+    local intro, list, coming
+    if not rank then
+        intro = "You haven't learned Cooking. Any cooking trainer teaches it, and cooking what"
+            .. " you catch is one of the easiest ways to level it."
+        list = {}
+    elseif maxRank and rank >= maxRank and maxRank < 300 then
+        intro = (
+            "Your Cooking has reached %d, its cap for now. Learn the next rank to keep"
+            .. " going."
+        ):format(rank)
+        list = {}
+    else
+        list, coming = ns.Cooking.Suggestions(rank, fishing, book)
+        if #list > 0 then
+            intro = ("Cooking %d. These catches still give you points, best first:"):format(rank)
+        else
+            intro = ("None of your catches give Cooking points at %d."):format(rank)
+        end
+    end
+
+    Kit.PlaceText(inside, section.intro, 0, intro)
+    for index = 1, math.min(#list, COOKING_ROWS) do
+        local row = section.rows:Next()
+        FillWorthRow(row, inside.width, CookingEntry(list[index], book, side), side)
+        Kit.Place(inside, row, index == 1 and LINE_GAP or ROW_GAP)
+    end
+    section.rows:HideRest()
+    if owner and (owner.use ~= before or not owner:IsShown()) then
+        ns.RecipeCard.HideFrom(section)
+    end
+
+    if coming then
+        local name = BookKit.Name(coming.use.makes) or "another recipe"
+        Kit.PlaceText(
+            inside,
+            section.coming,
+            ROW_GAP,
+            ("Next to come: %s, from Cooking %d."):format(name, coming.at)
+        )
+    end
+    Kit.PlaceSection(layout, section, inside)
+end
+
 local function Refresh()
     local rank, _, modifier = ns.ShownSkill()
     local skill = rank or 0
@@ -849,8 +976,9 @@ local function Refresh()
 
     local nextRank = FillStep(layout, skill, level)
     FillPerson(layout, nextRank, side)
-    local bracket = FillWaters(layout, effective, side)
-    FillWorth(layout, skill, level, side, bracket)
+    FillWaters(layout, effective, side)
+    FillWorth(layout, skill, level, side)
+    FillCooking(layout, side, effective)
 
     tab.page:SetHeight(layout.y + Kit.SECTION_GAP)
 end
@@ -916,6 +1044,14 @@ function BookNext.Create(parent)
     worth.nothing = MutedParagraph(worth)
     tab.worth = worth
 
+    local cooking = Kit.Section(tab.page, "Cooking with your catches")
+    cooking.intro = MutedParagraph(cooking)
+    cooking.rows = BookKit.Pool(function()
+        return CreateWorthRow(cooking)
+    end)
+    cooking.coming = MutedParagraph(cooking)
+    tab.cooking = cooking
+
     -- A recipe card opened from this page goes when the page does.
     tab:SetScript("OnHide", function(self)
         if ns.RecipeCard then
@@ -936,3 +1072,6 @@ ns.OnEvent("PLAYER_LEVEL_UP", RefreshSoon)
 -- A recipe learned (a fish bowl, say) drops off what's worth doing.
 ns.OnEvent("LEARNED_SPELL_IN_SKILL_LINE", RefreshSoon)
 ns.OnEvent("SPELLS_CHANGED", RefreshSoon)
+-- Cooking's rank, and the recipes the Cooking window says are known.
+ns.OnEvent("SKILL_LINES_CHANGED", RefreshSoon)
+ns.Listen("RECIPES_CHANGED", RefreshSoon)

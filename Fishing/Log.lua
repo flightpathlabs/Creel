@@ -15,6 +15,8 @@ local _, ns = ...
 --                   each has had its own CATCH
 --   GETAWAY ()
 --   NEXT_POINT (estimate)
+--   CAST_LOST (how)  a cast the trip counts as lost: "missed", "early" or
+--                    "getaway", once it's settled
 
 local Log = {}
 ns.Log = Log
@@ -30,9 +32,16 @@ local function ItemFromLink(link)
     return tonumber(link:match("item:(%d+)"))
 end
 
+-- The cast under way, for telling afterwards how it ended. See "How a
+-- cast ended" below.
+local cast
+
 ns.OnEvent("LOOT_READY", function()
     if not IsFishingLoot() then
         return
+    end
+    if cast then
+        cast.looted = true
     end
     for slot = 1, GetNumLootItems() do
         -- LOOT_READY can fire more than once for the same window; a slot
@@ -300,8 +309,17 @@ ns.OnEvent("UI_ERROR_MESSAGE", function(_, message)
         return
     end
     if _G.ERR_FISH_ESCAPED and message == _G.ERR_FISH_ESCAPED then
+        if cast then
+            cast.ended = "getaway"
+        end
         ns.Spots.RecordGetaway()
         ns.Send("GETAWAY")
+        return
+    end
+    if _G.ERR_FISH_NOT_HOOKED and message == _G.ERR_FISH_NOT_HOOKED then
+        if cast then
+            cast.ended = "early"
+        end
         return
     end
     local pattern = NeedsPattern()
@@ -349,3 +367,95 @@ ns.Listen("LINE_OUT", function()
         UpdateRecords(ns.Book(), trip)
     end
 end)
+
+-- How a cast ended ---------------------------------------------------------------
+
+-- Each cast ends one of five ways, and a trip counts three of them besides
+-- its catches:
+--
+--   caught    fishing loot came up
+--   getaway   the game said the fish got away (the water's beyond the
+--             skill): ERR_FISH_ESCAPED
+--   early     reeled in before anything bit: the game says no fish is
+--             hooked, ERR_FISH_NOT_HOOKED
+--   missed    the line ran its full time with nothing reeled in, so the
+--             bite came and went
+--   stopped   the line came in early with no word from the game: the
+--             player moved, cast again or was attacked. Not counted.
+--
+-- The loot and the game's message can come just before or just after the
+-- channel ends, so the verdict waits a moment after it does. A cast that
+-- ends a little before its full time still counts as run out, since the
+-- channel's own end and the event's arrival aren't to the frame.
+local SETTLE_SECONDS = 1
+local FULL_TIME_SLACK = 0.75
+
+local COUNTED = { getaway = "getaways", early = "early", missed = "misses" }
+
+local function Settle(this)
+    if this.looted then
+        return
+    end
+    local ended = this.ended
+    if not ended and this.endsAt and this.stoppedAt >= this.endsAt - FULL_TIME_SLACK then
+        ended = "missed"
+    end
+    local field = COUNTED[ended]
+    if not field then
+        return
+    end
+    this.trip[field] = (this.trip[field] or 0) + 1
+    this.book.totals[field] = (this.book.totals[field] or 0) + 1
+    ns.Send("CAST_LOST", ended)
+end
+
+ns.Listen("LINE_OUT", function()
+    local trip = ns.State.trip
+    if not trip then
+        cast = nil
+        return
+    end
+    local _, _, _, _, endMS = UnitChannelInfo("player")
+    endMS = ns.Readable(endMS)
+    cast = {
+        trip = trip,
+        book = ns.Book(),
+        endsAt = endMS and endMS / 1000 or nil,
+    }
+end)
+
+ns.Listen("LINE_IN", function()
+    local this = cast
+    if not this then
+        return
+    end
+    this.stoppedAt = GetTime()
+    C_Timer.After(SETTLE_SECONDS, function()
+        if cast == this then
+            cast = nil
+        end
+        Settle(this)
+    end)
+end)
+
+--- A trip's lost casts in words, as "3 missed · 1 reeled early · 1 got
+--- away", or nil when there were none.
+---@param trip table
+---@param separator string|nil
+---@return string|nil
+function Log.LostText(trip, separator)
+    local parts = {}
+    if (trip.misses or 0) > 0 then
+        table.insert(parts, ("%d missed"):format(trip.misses))
+    end
+    if (trip.early or 0) > 0 then
+        table.insert(parts, ("%d reeled early"):format(trip.early))
+    end
+    if (trip.getaways or 0) > 0 then
+        table.insert(parts, ("%d got away"):format(trip.getaways))
+    end
+    if #parts == 0 then
+        return nil
+    end
+    return table.concat(parts, separator or " · ")
+end

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The Next page has a Cooking section: which of your catches still give
+  Cooking points at your skill, best first, where they bite, and whether
+  you know the recipe or where to buy it. A catch that would level your
+  Cooking says so on the catch card.
+- Each trip counts the casts that brought nothing: missed (the line ran
+  out), reeled early (before anything bit) and got away. They show under
+  the panel's tally and on the Trips page.
 - Stranglekelp counts as a normal catch. It's uncommon on Forever's
   lines but not rare, so it's in the Collection, with what it's used for,
   instead of arriving as a unique find.

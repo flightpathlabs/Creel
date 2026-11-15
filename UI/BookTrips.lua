@@ -347,6 +347,10 @@ local function FillDetail(trip)
         )
     end
     table.insert(parts, SkillText(trip))
+    local lost = ns.Log.LostText(trip)
+    if lost then
+        table.insert(parts, lost)
+    end
     detail.figures:SetWidth(width)
     detail.figures:SetText(table.concat(parts, " · "))
 
@@ -456,7 +460,14 @@ local function FillStats(book)
         {
             label = "Catches",
             value = BreakUpLargeNumbers(totals.catches or 0),
-            figures = {},
+            title = "Catches, and casts that brought nothing",
+            figures = {
+                { "Missed", BreakUpLargeNumbers(totals.misses or 0) },
+                { "Reeled early", BreakUpLargeNumbers(totals.early or 0) },
+                { "Got away", BreakUpLargeNumbers(totals.getaways or 0) },
+            },
+            note = "Missed: the line ran out with nothing reeled in. Reeled early: in before"
+                .. " anything bit. Kept since Creel started counting them.",
         },
         -- At auction where anything has a price there, otherwise what a
         -- vendor would have paid.

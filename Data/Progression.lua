@@ -468,6 +468,619 @@ Progression.brackets = {
     },
 }
 
+-- Cooking recipes for catches -------------------------------------------------------
+
+-- Who sells the recipe for each cooking recipe a catch goes into, by the
+-- recipe's spell ID, for the Next page's Cooking section. From Wowhead
+-- Classic's vendor lists, with coordinates from Forever guides' Classic
+-- spawn data (docs/research/cooking-from-fishing.md); unchecked in game.
+-- Up to two vendors a side. Recipes a trainer teaches aren't here, and
+-- neither are the recipe items themselves, which come from the game's
+-- tables (Data/Shop.lua). Where no vendor is known, note finishes a
+-- sentence that starts with the recipe item's name. Undermine Clam
+-- Chowder's vendor has one at a time.
+local UNKNOWN = "is new in Forever, and where it comes from isn't known yet."
+
+Progression.cookingRecipes = {
+    [7751] = { -- Brilliant Smallfish
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Tharynn Bouden",
+                place = "Goldshire",
+                uiMapID = 1429,
+                x = 41.8,
+                y = 67.2,
+            },
+            {
+                side = "Alliance",
+                name = "Gretta Ganter",
+                place = "Dun Morogh",
+                uiMapID = 1426,
+                x = 31.5,
+                y = 44.7,
+            },
+            {
+                side = "Horde",
+                name = "Harn Longcast",
+                place = "Mulgore",
+                uiMapID = 1412,
+                x = 46.7,
+                y = 59.1,
+            },
+            {
+                side = "Horde",
+                name = "Martine Tramblay",
+                place = "Tirisfal Glades",
+                uiMapID = 1420,
+                x = 65.9,
+                y = 59.6,
+            },
+            {
+                side = "Both",
+                name = "Nyalah Brightfire",
+                place = "Valanaar, Zephras Isle",
+                uiMapID = 2521,
+                x = 60.6,
+                y = 72.7,
+            },
+        },
+    },
+    [7752] = { -- Slitherskin Mackerel
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Kriggon Talsone",
+                place = "Westfall coast",
+                uiMapID = 1436,
+                x = 36.2,
+                y = 90.2,
+            },
+            {
+                side = "Alliance",
+                name = "Nessa Shadowsong",
+                place = "Rut'theran Village",
+                uiMapID = 1438,
+                x = 56.3,
+                y = 92.4,
+            },
+            {
+                side = "Horde",
+                name = "Zansoa",
+                place = "Sen'jin Village",
+                uiMapID = 1411,
+                x = 56.1,
+                y = 73.4,
+            },
+            {
+                side = "Horde",
+                name = "Martine Tramblay",
+                place = "Tirisfal Glades",
+                uiMapID = 1420,
+                x = 65.9,
+                y = 59.6,
+            },
+            {
+                side = "Both",
+                name = "Nyalah Brightfire",
+                place = "Valanaar, Zephras Isle",
+                uiMapID = 2521,
+                x = 60.6,
+                y = 72.7,
+            },
+        },
+    },
+    [7753] = { -- Longjaw Mud Snapper
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Tharynn Bouden",
+                place = "Goldshire",
+                uiMapID = 1429,
+                x = 41.8,
+                y = 67.2,
+            },
+            {
+                side = "Alliance",
+                name = "Khara Deepwater",
+                place = "Thelsamar, Loch Modan",
+                uiMapID = 1432,
+                x = 40.3,
+                y = 39.3,
+            },
+            {
+                side = "Horde",
+                name = "Harn Longcast",
+                place = "Mulgore",
+                uiMapID = 1412,
+                x = 46.7,
+                y = 59.1,
+            },
+            {
+                side = "Horde",
+                name = "Killian Sanatha",
+                place = "Silverpine Forest",
+                uiMapID = 1421,
+                x = 33.0,
+                y = 17.8,
+            },
+            {
+                side = "Both",
+                name = "Nyalah Brightfire",
+                place = "Valanaar, Zephras Isle",
+                uiMapID = 2521,
+                x = 60.6,
+                y = 72.7,
+            },
+        },
+    },
+    [7754] = { -- Loch Frenzy Delight
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Khara Deepwater",
+                place = "Thelsamar, Loch Modan",
+                uiMapID = 1432,
+                x = 40.3,
+                y = 39.3,
+            },
+        },
+    },
+    [7827] = { -- Rainbow Fin Albacore
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Kriggon Talsone",
+                place = "Westfall coast",
+                uiMapID = 1436,
+                x = 36.2,
+                y = 90.2,
+            },
+            {
+                side = "Alliance",
+                name = "Heldan Galesong",
+                place = "Auberdine",
+                uiMapID = 1439,
+                x = 37.0,
+                y = 56.4,
+            },
+            {
+                side = "Horde",
+                name = "Zansoa",
+                place = "Sen'jin Village",
+                uiMapID = 1411,
+                x = 56.1,
+                y = 73.4,
+            },
+            {
+                side = "Horde",
+                name = "Killian Sanatha",
+                place = "Silverpine Forest",
+                uiMapID = 1421,
+                x = 33.0,
+                y = 17.8,
+            },
+            {
+                side = "Both",
+                name = "Kilxx",
+                place = "Ratchet",
+                uiMapID = 1413,
+                x = 62.8,
+                y = 38.2,
+            },
+        },
+    },
+    [25704] = { -- Smoked Sagefish
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Gloria Femmel",
+                place = "Lakeshire",
+                uiMapID = 1433,
+                x = 21.6,
+                y = 43.5,
+            },
+            {
+                side = "Alliance",
+                name = "Micha Yance",
+                place = "Southshore",
+                uiMapID = 1424,
+                x = 48.9,
+                y = 55.0,
+            },
+            {
+                side = "Horde",
+                name = "Derak Nightfall",
+                place = "Tarren Mill",
+                uiMapID = 1424,
+                x = 63.1,
+                y = 19.4,
+            },
+            {
+                side = "Horde",
+                name = "Xen'to",
+                place = "Orgrimmar",
+                uiMapID = 1454,
+                x = 57.6,
+                y = 52.9,
+            },
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [8238] = { note = "drops from creatures in the Barrens." }, -- Savory Deviate Delight
+    [6501] = { -- Clam Chowder
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Kriggon Talsone",
+                place = "Westfall coast",
+                uiMapID = 1436,
+                x = 36.2,
+                y = 90.2,
+            },
+            {
+                side = "Alliance",
+                name = "Heldan Galesong",
+                place = "Auberdine",
+                uiMapID = 1439,
+                x = 37.0,
+                y = 56.4,
+            },
+        },
+    },
+    [7755] = { -- Bristle Whisker Catfish
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Lindea Rabonne",
+                place = "Southshore",
+                uiMapID = 1424,
+                x = 50.6,
+                y = 60.9,
+            },
+            {
+                side = "Alliance",
+                name = "Catherine Leland",
+                place = "Stormwind, by the canals",
+                uiMapID = 1453,
+                x = 55.1,
+                y = 69.8,
+            },
+            {
+                side = "Horde",
+                name = "Derak Nightfall",
+                place = "Tarren Mill",
+                uiMapID = 1424,
+                x = 63.1,
+                y = 19.4,
+            },
+            {
+                side = "Horde",
+                name = "Naal Mistrunner",
+                place = "Thunder Bluff",
+                uiMapID = 1456,
+                x = 51.0,
+                y = 52.5,
+            },
+            {
+                side = "Both",
+                name = "Kilxx",
+                place = "Ratchet",
+                uiMapID = 1413,
+                x = 62.8,
+                y = 38.2,
+            },
+        },
+    },
+    [7828] = { -- Rockscale Cod
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Stuart Fleming",
+                place = "Menethil Harbor",
+                uiMapID = 1437,
+                x = 8.0,
+                y = 58.3,
+            },
+            {
+                side = "Alliance",
+                name = "Lindea Rabonne",
+                place = "Southshore",
+                uiMapID = 1424,
+                x = 50.6,
+                y = 60.9,
+            },
+            {
+                side = "Horde",
+                name = "Wik'Tar",
+                place = "Zoram'gar Outpost",
+                uiMapID = 1440,
+                x = 11.7,
+                y = 34.1,
+            },
+            {
+                side = "Horde",
+                name = "Shankys",
+                place = "Orgrimmar, Valley of Honor",
+                uiMapID = 1454,
+                x = 70.0,
+                y = 29.8,
+            },
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [20916] = { -- Mithril Head Trout
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Stuart Fleming",
+                place = "Menethil Harbor",
+                uiMapID = 1437,
+                x = 8.0,
+                y = 58.3,
+            },
+            {
+                side = "Alliance",
+                name = "Lindea Rabonne",
+                place = "Southshore",
+                uiMapID = 1424,
+                x = 50.6,
+                y = 60.9,
+            },
+            {
+                side = "Horde",
+                name = "Wik'Tar",
+                place = "Zoram'gar Outpost",
+                uiMapID = 1440,
+                x = 11.7,
+                y = 34.1,
+            },
+            {
+                side = "Horde",
+                name = "Shankys",
+                place = "Orgrimmar, Valley of Honor",
+                uiMapID = 1454,
+                x = 70.0,
+                y = 29.8,
+            },
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [25954] = { -- Sagefish Delight
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Gloria Femmel",
+                place = "Lakeshire",
+                uiMapID = 1433,
+                x = 21.6,
+                y = 43.5,
+            },
+            {
+                side = "Alliance",
+                name = "Micha Yance",
+                place = "Southshore",
+                uiMapID = 1424,
+                x = 48.9,
+                y = 55.0,
+            },
+            {
+                side = "Horde",
+                name = "Derak Nightfall",
+                place = "Tarren Mill",
+                uiMapID = 1424,
+                x = 63.1,
+                y = 19.4,
+            },
+            {
+                side = "Horde",
+                name = "Xen'to",
+                place = "Orgrimmar",
+                uiMapID = 1454,
+                x = 57.6,
+                y = 52.9,
+            },
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [20626] = { -- Undermine Clam Chowder
+        vendors = {
+            {
+                side = "Both",
+                name = "Jabbey",
+                place = "Steamwheedle Port",
+                uiMapID = 1446,
+                x = 67.0,
+                y = 22.0,
+            },
+        },
+    },
+    [18238] = { -- Spotted Yellowtail
+        vendors = {
+            {
+                side = "Both",
+                name = "Gikkix",
+                place = "Steamwheedle Port",
+                uiMapID = 1446,
+                x = 66.6,
+                y = 22.1,
+            },
+        },
+    },
+    [18240] = { -- Grilled Squid
+        vendors = {
+            {
+                side = "Both",
+                name = "Gikkix",
+                place = "Steamwheedle Port",
+                uiMapID = 1446,
+                x = 66.6,
+                y = 22.1,
+            },
+        },
+    },
+    [18243] = { -- Nightfin Soup
+        vendors = {
+            {
+                side = "Both",
+                name = "Gikkix",
+                place = "Steamwheedle Port",
+                uiMapID = 1446,
+                x = 66.6,
+                y = 22.1,
+            },
+        },
+    },
+    [18244] = { -- Poached Sunscale Salmon
+        vendors = {
+            {
+                side = "Both",
+                name = "Gikkix",
+                place = "Steamwheedle Port",
+                uiMapID = 1446,
+                x = 66.6,
+                y = 22.1,
+            },
+        },
+    },
+    [18239] = { -- Cooked Glossy Mightfish
+        vendors = {
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [18241] = { -- Filet of Redgill
+        vendors = {
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [18242] = { -- Hot Smoked Bass
+        vendors = {
+            {
+                side = "Both",
+                name = "Kelsey Yance",
+                place = "Booty Bay",
+                uiMapID = 1434,
+                x = 28.2,
+                y = 74.3,
+            },
+        },
+    },
+    [18245] = { -- Lobster Stew
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Vivianna",
+                place = "Feathermoon Stronghold",
+                uiMapID = 1444,
+                x = 31.3,
+                y = 43.5,
+            },
+            {
+                side = "Horde",
+                name = "Sheendra Tallgrass",
+                place = "Camp Mojache",
+                uiMapID = 1444,
+                x = 74.5,
+                y = 42.7,
+            },
+        },
+    },
+    [18246] = { -- Mightfish Steak
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Vivianna",
+                place = "Feathermoon Stronghold",
+                uiMapID = 1444,
+                x = 31.3,
+                y = 43.5,
+            },
+            {
+                side = "Horde",
+                name = "Sheendra Tallgrass",
+                place = "Camp Mojache",
+                uiMapID = 1444,
+                x = 74.5,
+                y = 42.7,
+            },
+        },
+    },
+    [18247] = { -- Baked Salmon
+        vendors = {
+            {
+                side = "Alliance",
+                name = "Vivianna",
+                place = "Feathermoon Stronghold",
+                uiMapID = 1444,
+                x = 31.3,
+                y = 43.5,
+            },
+            {
+                side = "Horde",
+                name = "Sheendra Tallgrass",
+                place = "Camp Mojache",
+                uiMapID = 1444,
+                x = 74.5,
+                y = 42.7,
+            },
+        },
+    },
+
+    -- New in Forever, with no source anyone has confirmed yet
+    [1250158] = { note = UNKNOWN }, -- Clam Linguine
+    [1319313] = { note = UNKNOWN }, -- Plated Armorfish
+    -- In SoD, Carrie's Cookbook (239021) teaches both feasts. It's the
+    -- reward for "The Great Feast" (quest 89341) in New Avalon.
+    [1225762] = { note = UNKNOWN }, -- Specklefin Feast
+    [1225763] = { note = UNKNOWN }, -- Grand Lobster Banquet
+    -- In SoD, Enkles (Alliance) and Apothecary Quinard (Horde) sell both
+    -- in Silithus.
+    [470359] = { note = UNKNOWN }, -- Darkclaw Bisque
+    [470370] = { note = UNKNOWN }, -- Smoked Redgill
+}
+
 -- Worth doing ---------------------------------------------------------------------
 
 -- Each entry shows while the player's skill (the rank, not counting lures

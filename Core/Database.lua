@@ -92,7 +92,7 @@ end
 -- What the interface shows -----------------------------------------------------
 --
 -- The panel, the book, the map pins and the tooltips take the book, the
--- skill, the level and the open trip they show from these, not straight
+-- skills, the level and the open trip they show from these, not straight
 -- from ns.Book(), ns.State or UnitLevel. (The panel does look at the real
 -- trip, to tell it apart from a stand-in.) Each gives the real thing;
 -- something that wants the interface to show something else for a while
@@ -124,6 +124,12 @@ end
 function ns.ShownSkill()
     local state = ns.State
     return state.rank, state.maxRank, state.modifier or 0
+end
+
+--- The Cooking skill to show: rank and cap, or nil without Cooking.
+---@return number|nil rank, number|nil maxRank
+function ns.ShownCooking()
+    return ns.Cooking.Skill()
 end
 
 --- The character's level to show.

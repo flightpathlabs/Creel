@@ -1462,9 +1462,17 @@ local function LayOutBody()
         else
             panel.worth:Hide()
         end
+        local lost = ns.Log.LostText(trip, SEPARATOR)
+        if lost then
+            panel.lost:SetText(Kit.Colored(lost, MUTED))
+            Put(panel.lost, LINE_HEIGHT, LINE_GAP)
+        else
+            panel.lost:Hide()
+        end
     else
         panel.catches:Hide()
         panel.worth:Hide()
+        panel.lost:Hide()
     end
 
     -- The demo's trip can't be ended, so it has no button.
@@ -1640,6 +1648,8 @@ local function Create()
     panel.catches:SetWidth(INNER)
     panel.worth = Kit.Text(body, "GameFontHighlightSmall")
     panel.worth:SetWidth(INNER)
+    panel.lost = Kit.Text(body, "GameFontHighlightSmall")
+    panel.lost:SetWidth(INNER)
 
     panel.endTrip = Kit.Button(body, "End trip", END_BUTTON_WIDTH, function()
         -- Only a real trip can be ended. One shown in its place is left be.
@@ -1898,6 +1908,7 @@ for _, message in ipairs({
     "LINE_OUT",
     "LINE_IN",
     "GETAWAY",
+    "CAST_LOST",
     "NEXT_POINT",
     "QUIET_CHANGED",
 }) do

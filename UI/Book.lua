@@ -855,6 +855,7 @@ end
 -- Whatever changes what's in the book redraws the tab that's showing.
 for _, message in ipairs({
     "CATCH",
+    "CAST_LOST",
     "TRIP_ENDED",
     "SALE",
     "BOOK_CHANGED",
