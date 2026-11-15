@@ -89,6 +89,46 @@ function ns.Book()
     return ns.db.books.account
 end
 
+-- What the interface shows -----------------------------------------------------
+--
+-- The panel, the book, the map pins and the tooltips read the book, the
+-- skill and the open trip through these, never through ns.Book() and
+-- ns.State directly. Each gives the real thing; something that wants the
+-- interface to show something else for a while (screenshots, say) can put
+-- its own in their place without the fishing code, which always writes
+-- through ns.Book() and ns.State, being any the wiser.
+
+--- The book to show.
+---@return table
+function ns.ShownBook()
+    return ns.Book()
+end
+
+--- The trip under way to show, if any.
+---@return table|nil
+function ns.ShownTrip()
+    return ns.State.trip
+end
+
+--- Seconds of the trip under way so far.
+---@return number
+function ns.ShownTripSeconds()
+    return ns.State.TripSeconds()
+end
+
+--- The Fishing skill to show: rank, the cap, and what gear and lure add.
+---@return number|nil rank, number|nil maxRank, number modifier
+function ns.ShownSkill()
+    local state = ns.State
+    return state.rank, state.maxRank, state.modifier or 0
+end
+
+--- How the water underfoot compares with the skill: see Spots.Verdict.
+---@return string verdict, table|nil spot, string|nil reason
+function ns.ShownVerdict()
+    return ns.Spots.Verdict()
+end
+
 --- Switches the current character between the shared book and one of its
 --- own. Nothing is moved or merged; each book keeps what's in it.
 ---@param own boolean

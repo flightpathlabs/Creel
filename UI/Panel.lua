@@ -187,6 +187,11 @@ local lastTrip
 -- unique, special, valuable }. Nil before any this trip.
 local latest
 
+-- While the screenshot demo (UI/Demo.lua) has the panel: the real card and
+-- last trip, kept up to date behind the demo's and put back afterwards.
+-- Nil the rest of the time.
+local beforeDemo
+
 local Refresh
 
 -- Small helpers ---------------------------------------------------------------
@@ -271,7 +276,7 @@ end
 -- The trip the panel is about: the one under way, or the one that just
 -- ended.
 local function ShownTrip()
-    return ns.State.trip or lastTrip
+    return ns.ShownTrip() or lastTrip
 end
 
 -- A button made of one small picture, faint until the mouse is on it.
@@ -349,13 +354,11 @@ end
 -- The top line ------------------------------------------------------------------
 
 local function HeaderText()
-    local state = ns.State
-    if not state.rank then
+    local rank, maxRank, modifier = ns.ShownSkill()
+    if not rank then
         return "Fishing"
     end
-    local text = "Fishing "
-        .. Kit.Colored(("%d/%d"):format(state.rank, state.maxRank or state.rank), WHITE)
-    local modifier = state.modifier or 0
+    local text = "Fishing " .. Kit.Colored(("%d/%d"):format(rank, maxRank or rank), WHITE)
     if modifier > 0 then
         text = text .. " " .. Kit.Colored(("(+%d)"):format(modifier), Kit.GOOD)
     elseif modifier < 0 then
@@ -697,11 +700,11 @@ end
 -- The trip and spot lines -------------------------------------------------------
 
 local function TripText()
-    local allTime = Kit.Colored("All time", MUTED) .. " " .. ns.Hours(ns.Book().totals.seconds)
-    if ns.State.trip then
+    local allTime = Kit.Colored("All time", MUTED) .. " " .. ns.Hours(ns.ShownBook().totals.seconds)
+    if ns.ShownTrip() then
         return Kit.Colored("This trip", MUTED)
             .. " "
-            .. ns.Clock(ns.State.TripSeconds())
+            .. ns.Clock(ns.ShownTripSeconds())
             .. SEPARATOR
             .. allTime
     elseif lastTrip then
@@ -719,7 +722,7 @@ local function SpotText()
     if not state.spellID then
         return ""
     end
-    local verdict, spot, reason = ns.Spots.Verdict()
+    local verdict, spot, reason = ns.ShownVerdict()
     local text
     if reason == "needs" then
         text = Kit.Colored(("Needs Fishing %d here"):format(spot.needsSkill), Kit.GOLD)
@@ -728,8 +731,9 @@ local function SpotText()
         text = Kit.Colored(words[1], words[2])
     end
 
-    if state.rank and state.maxRank and state.rank >= state.maxRank then
-        local hint = TRAINING[state.maxRank]
+    local rank, maxRank = ns.ShownSkill()
+    if rank and maxRank and rank >= maxRank then
+        local hint = TRAINING[maxRank]
         if hint then
             text = text .. SEPARATOR .. hint
         end
@@ -1321,7 +1325,7 @@ end
 -- The footer --------------------------------------------------------------------
 
 local function SkillGained(trip)
-    local to = trip == ns.State.trip and ns.State.rank or trip.skillTo
+    local to = trip == ns.ShownTrip() and (ns.ShownSkill()) or trip.skillTo
     if to and trip.skillFrom then
         return to - trip.skillFrom
     end
@@ -1333,7 +1337,7 @@ local function CatchesText(trip)
         return Kit.Colored("No catches yet", MUTED)
     end
     local parts = { Plural(trip.caught, "catch", "catches") }
-    local seconds = trip == ns.State.trip and ns.State.TripSeconds() or trip.seconds or 0
+    local seconds = trip == ns.ShownTrip() and ns.ShownTripSeconds() or trip.seconds or 0
     if seconds >= RATE_AFTER then
         table.insert(parts, ("%d an hour"):format(math.floor(trip.caught * 3600 / seconds + 0.5)))
     end
@@ -1462,7 +1466,7 @@ local function LayOutBody()
         panel.worth:Hide()
     end
 
-    if ns.State.trip then
+    if ns.ShownTrip() then
         y = y + END_BUTTON_GAP
         panel.endTrip:ClearAllPoints()
         panel.endTrip:SetPoint("TOPRIGHT", body, "TOPRIGHT", -PADDING, -y)
@@ -1636,7 +1640,10 @@ local function Create()
     panel.worth:SetWidth(INNER)
 
     panel.endTrip = Kit.Button(body, "End trip", END_BUTTON_WIDTH, function()
-        ns.State.EndTrip()
+        -- Only a real trip can be ended. One shown in its place is left be.
+        if ns.ShownTrip() == ns.State.trip then
+            ns.State.EndTrip()
+        end
     end)
     panel.endTrip:SetHeight(END_BUTTON_HEIGHT)
 
@@ -1656,10 +1663,6 @@ local function Create()
 end
 
 -- What others call ----------------------------------------------------------------
-
--- While the demo (UI/Demo.lua) borrows the panel: what was on the card
--- before, to put back afterwards. Nil the rest of the time.
-local beforeDemo
 
 local function ShouldShow()
     if beforeDemo then
@@ -1710,8 +1713,9 @@ function Panel.Toggle()
 end
 
 --- For the demo: shows the panel whatever the setting says, with a small
---- "Demo data" tag under its corner, and clears the card. Switched off,
---- the card has what it had before and the setting rules again.
+--- "Demo data" tag under its corner, and gives the card to the demo.
+--- Switched off, the card has the real latest catch again and the setting
+--- rules again.
 ---@param on boolean
 function Panel.SetDemo(on)
     if not panel then
@@ -1759,31 +1763,42 @@ end)
 
 ns.Listen("POLE_CHANGED", Panel.UpdateVisibility)
 ns.Listen("SETTINGS_CHANGED", Panel.UpdateVisibility)
+-- The real card and last trip: on show, or kept behind the demo's.
+local function Real()
+    return beforeDemo or { latest = latest, lastTrip = lastTrip }
+end
+
+local function SetReal(newLatest, newLastTrip)
+    if beforeDemo then
+        beforeDemo.latest, beforeDemo.lastTrip = newLatest, newLastTrip
+    else
+        latest, lastTrip = newLatest, newLastTrip
+    end
+end
+
 -- A different book (or an emptied one): what the panel was showing belongs
 -- to the old one.
 ns.Listen("BOOK_CHANGED", function()
-    latest = nil
-    lastTrip = nil
+    SetReal(nil, nil)
     Refresh()
 end)
 
 ns.Listen("TRIP_STARTED", function()
-    latest = nil
-    lastTrip = nil
+    SetReal(nil, nil)
     Panel.UpdateVisibility()
 end)
 
 ns.Listen("TRIP_ENDED", function(trip)
     if trip and (trip.caught or 0) > 0 then
-        lastTrip = trip
+        SetReal(Real().latest, trip)
     end
     Panel.UpdateVisibility()
 end)
 
--- What the card knows about one catch.
-local function CardEntry(catch)
-    local trip = ns.State.trip
-    local spot = catch.spotID and ns.Book().spots[catch.spotID]
+-- What the card knows about one catch, from the trip and book it was
+-- caught into.
+local function CardEntry(catch, trip, book)
+    local spot = catch.spotID and book.spots[catch.spotID]
     local rare
     if
         catch.share
@@ -1822,30 +1837,58 @@ end
 -- One loot window can bring up more than one thing. The card shows the
 -- most remarkable (the last of equals, as when they came one at a time),
 -- and the window gets one moment and one sound.
-ns.Listen("CATCHES", function(catches)
+local function Pick(catches, trip, book)
     local this
     for _, catch in ipairs(catches) do
-        local entry = CardEntry(catch)
+        local entry = CardEntry(catch, trip, book)
         if not this or Remarkable(entry) >= Remarkable(this) then
             this = entry
         end
     end
-    if not this then
-        return
-    end
-    latest = this
-
-    -- The tip is picked once per catch, when the item's name is known, so
-    -- the lines that name what it cooks into have their words.
-    WithItem(this.itemID, function()
-        if latest == this then
+    if this then
+        -- The tip is picked once per catch, when the item's name is known,
+        -- so the lines that name what it cooks into have their words.
+        WithItem(this.itemID, function()
             this.tip = ns.Trivia.Pick(this.itemID)
-            Refresh()
-        end
-    end)
+            if latest == this then
+                Refresh()
+            end
+        end)
+    end
+    return this
+end
+
+local function Show(this)
+    latest = this
     Refresh()
     Celebrate(this)
+end
+
+-- A real catch. While the demo has the card, it's kept for when the demo
+-- ends, quietly: the catch is in the real book either way.
+ns.Listen("CATCHES", function(catches)
+    local this = Pick(catches, ns.State.trip, ns.Book())
+    if not this then
+        return
+    elseif beforeDemo then
+        beforeDemo.latest = this
+        return
+    end
+    Show(this)
 end)
+
+--- For the demo: puts its own catches on the card, as a loot window's
+--- arrive. Does nothing unless the demo has the panel.
+---@param catches table  list of catches, as in a CATCHES message
+function Panel.ShowDemoCatches(catches)
+    if not beforeDemo then
+        return
+    end
+    local this = Pick(catches, ns.ShownTrip(), ns.ShownBook())
+    if this then
+        Show(this)
+    end
+end
 
 for _, message in ipairs({
     "SPELL_CHANGED",
@@ -1862,6 +1905,7 @@ end
 ns.Listen("CASTING_CHANGED", RefreshStatus)
 ns.Listen("LURE_CHANGED", UpdateLure)
 ns.Listen("TRIP_TICK", UpdateClock)
+ns.Listen("DEMO_TICK", UpdateClock)
 ns.Listen("QUIET_CHANGED", WithdrawSound)
 
 ns.OnEvent("PLAYER_TARGET_CHANGED", RefreshStatus)

@@ -72,7 +72,7 @@ local function ShowTooltip(self)
     GameTooltip:AddLine("Right-click for options.", 1, 1, 1)
     GameTooltip:AddLine("Shift-click to show or hide the panel.", 1, 1, 1)
 
-    local trip = ns.State.trip
+    local trip = ns.ShownTrip()
     if trip then
         local caught = trip.caught or 0
         GameTooltip:AddLine(" ")
@@ -80,7 +80,7 @@ local function ShowTooltip(self)
             ("This trip: %d %s in %s"):format(
                 caught,
                 caught == 1 and "catch" or "catches",
-                ns.Clock(ns.State.TripSeconds())
+                ns.Clock(ns.ShownTripSeconds())
             ),
             1,
             1,

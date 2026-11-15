@@ -9,12 +9,15 @@ local _, ns = ...
 -- Eastern Kingdoms and Kalimdor, two dozen trips, records, sales and a
 -- couple of unique finds.
 --
--- Nothing is saved and nothing real is changed. ns.Book() hands out an
--- invented book kept in memory, and the few parts of ns.State the panel
--- reads (the skill and the open trip) stand in for the real ones. Casting,
--- key bindings, the lure button and the sound settings keep working off
--- the real state throughout. It all goes back when the demo is switched
--- off, the interface is reloaded, or the player logs out.
+-- Nothing is saved and nothing real is changed. Only what the interface
+-- shows is swapped: ns.ShownBook(), ns.ShownTrip(), ns.ShownTripSeconds(),
+-- ns.ShownSkill() and ns.ShownVerdict() (Core/Database.lua) give the
+-- invented angler while the demo is on. Everything that writes (catches,
+-- casts, sales, the trip, casting and sound) goes on using the real book
+-- and the real state, so fishing for real with the demo on loses nothing.
+-- It all goes back when the demo is switched off or the interface is
+-- reloaded, and anything that changes which book is in use, or empties
+-- it, switches the demo off first.
 --
 -- Then, while it's on:
 --   /creel demo catch   an ordinary catch lands on the card
@@ -26,7 +29,7 @@ ns.Demo = Demo
 
 local on = false
 
--- The real functions and values, kept while the invented ones stand in.
+-- The real accessors, kept while the invented ones stand in.
 local real = {}
 
 local book
@@ -219,6 +222,7 @@ local LATEST = 4603 -- Raw Spotted Yellowtail
 -- and a Black Pearl, which comes out of clams. A third, an Iridescent
 -- Pearl, is kept back for "/creel demo find".
 local FIND_SKILL = { [6360] = 168, [7971] = 179 }
+local RAREST = { itemID = 7971, spotID = #WATERS }
 local NEW_FIND = 5500
 
 -- Older trips than the book keeps in full, which the totals still count.
@@ -244,7 +248,8 @@ local function NewSpot(water, firstAt, lastAt)
         catches = {},
         caught = 0,
         seconds = 0,
-        lowestSkill = water.skill,
+        -- The skill as the game counts it at the water: rank and bonus.
+        lowestSkill = water.skill + BONUS,
         firstAt = firstAt,
         lastAt = lastAt,
     }
@@ -307,7 +312,14 @@ local function FillMoney()
     wipe(book.sales.vendor)
     wipe(book.sales.auction)
     local atAuction = { oil = true, fish = true, shellfish = true }
-    for itemID, fish in pairs(book.fish) do
+    -- In a fixed order, so the same sales come out every time.
+    local itemIDs = {}
+    for itemID in pairs(book.fish) do
+        table.insert(itemIDs, itemID)
+    end
+    table.sort(itemIDs)
+    for _, itemID in ipairs(itemIDs) do
+        local fish = book.fish[itemID]
         local entry = ns.Catches and ns.Catches[itemID]
         local sold = math.floor(fish.caught * (0.3 + random() * 0.4))
         local auction = entry and atAuction[entry.kind] and ns.Values.Auction(itemID)
@@ -336,30 +348,13 @@ local function FillMoney()
         end
     end
 
-    -- The rarest catch: the lowest share of a water's catches, from a
-    -- water with enough of them, on a trip that brought one up.
-    for spotID, spot in pairs(book.spots) do
-        if spot.caught >= 30 then
-            for itemID in pairs(spot.catches) do
-                local share = ns.Spots.Share(spot, itemID)
-                if not records.rarest or share < records.rarest.share then
-                    local startAt
-                    for _, entry in ipairs(book.trips) do
-                        if entry.spots[1] == spotID and entry.catches[itemID] then
-                            startAt = entry.startAt
-                            break
-                        end
-                    end
-                    records.rarest = {
-                        share = share,
-                        itemID = itemID,
-                        spotID = spotID,
-                        tripStartAt = startAt,
-                    }
-                end
-            end
-        end
-    end
+    -- The rarest catch: the Black Pearl, one in hundreds at Booty Bay.
+    local spot = book.spots[RAREST.spotID]
+    records.rarest = {
+        share = ns.Spots.Share(spot, RAREST.itemID),
+        itemID = RAREST.itemID,
+        spotID = RAREST.spotID,
+    }
     book.records = records
 end
 
@@ -543,8 +538,10 @@ local function Land(itemID, flags)
     for key, value in pairs(flags or {}) do
         catch[key] = value
     end
-    ns.Send("CATCH", catch)
-    ns.Send("CATCHES", { catch })
+    ns.Send("DEMO_CHANGED", true)
+    if ns.Panel and ns.Panel.ShowDemoCatches then
+        ns.Panel.ShowDemoCatches({ catch })
+    end
 end
 
 -- An ordinary catch from the trip's water: one of the fish it gives.
@@ -571,91 +568,63 @@ end
 
 -- Switching -------------------------------------------------------------------
 
--- Only the parts of the state the panel reads stand in, and only while
--- they still hold what the demo put there: anything the game has changed
--- since (a real skill-up, say) is left as the game set it.
-local function SwapStateIn()
-    local state = ns.State
-    real.trip, real.rank, real.maxRank, real.modifier =
-        state.trip, state.rank, state.maxRank, state.modifier
-    state.trip, state.rank, state.maxRank, state.modifier = trip, RANK, MAX_RANK, BONUS
-
-    real.TripSeconds = state.TripSeconds
-    state.TripSeconds = function()
-        if state.trip == trip then
-            return trip.seconds + (time() - turnedOnAt)
-        end
-        return real.TripSeconds()
-    end
-
-    -- The lure button picks lures by skill. It goes by the real skill.
-    real.LuresInBags = ns.Casting.LuresInBags
-    ns.Casting.LuresInBags = function(...)
-        local shown = state.rank
-        state.rank = real.rank
-        local lures = real.LuresInBags(...)
-        state.rank = shown
-        return lures
-    end
-
-    -- The panel's line about the water underfoot is about the trip's water.
-    real.Current = ns.Spots.Current
-    ns.Spots.Current = function()
-        return TRIP_WATER, book.spots[TRIP_WATER]
-    end
-end
-
-local function SwapStateOut()
-    local state = ns.State
-    if state.trip == trip then
-        state.trip = real.trip
-    elseif real.trip and not real.trip.endAt then
-        -- The trip ended while the demo was on (it sat idle too long, or
-        -- the pole went away), so the real one ended then too.
-        real.trip.endAt = time()
-    end
-    if state.rank == RANK then
-        state.rank = real.rank
-    end
-    if state.maxRank == MAX_RANK then
-        state.maxRank = real.maxRank
-    end
-    if state.modifier == BONUS then
-        state.modifier = real.modifier
-    end
-    state.TripSeconds = real.TripSeconds
-    ns.Casting.LuresInBags = real.LuresInBags
-    ns.Spots.Current = real.Current
-end
+local ticker
 
 local function TurnOn()
-    on = true
-    turnedOnAt = time()
+    -- Everything is built before anything is swapped, so a failure here
+    -- leaves the interface as it was.
     LoadItems()
     BuildBook()
+    turnedOnAt = time()
 
-    real.Book = ns.Book
-    ns.Book = function()
+    real.ShownBook = ns.ShownBook
+    real.ShownTrip = ns.ShownTrip
+    real.ShownTripSeconds = ns.ShownTripSeconds
+    real.ShownSkill = ns.ShownSkill
+    real.ShownVerdict = ns.ShownVerdict
+
+    ns.ShownBook = function()
         return book
     end
-    SwapStateIn()
+    ns.ShownTrip = function()
+        return trip
+    end
+    ns.ShownTripSeconds = function()
+        return trip.seconds + (time() - turnedOnAt)
+    end
+    ns.ShownSkill = function()
+        return RANK, MAX_RANK, BONUS
+    end
+    -- The water underfoot is the trip's, with no getaways at this skill.
+    ns.ShownVerdict = function()
+        return "safe", book.spots[TRIP_WATER]
+    end
+    on = true
 
     if ns.Panel and ns.Panel.SetDemo then
         ns.Panel.SetDemo(true)
     end
     ns.Send("DEMO_CHANGED", true)
 
+    -- The trip's clock runs, as a real one does.
+    ticker = C_Timer.NewTicker(1, function()
+        ns.Send("DEMO_TICK")
+    end)
+
     -- The card starts with a good catch on it, the way it would be.
     local spot = book.spots[TRIP_WATER]
-    local catch = {
-        itemID = LATEST,
-        count = 1,
-        first = false,
-        spotID = TRIP_WATER,
-        share = ns.Spots.Share(spot, LATEST),
-        quality = C_Item.GetItemQualityByID(LATEST),
-    }
-    ns.Send("CATCHES", { catch })
+    if ns.Panel and ns.Panel.ShowDemoCatches then
+        ns.Panel.ShowDemoCatches({
+            {
+                itemID = LATEST,
+                count = 1,
+                first = false,
+                spotID = TRIP_WATER,
+                share = ns.Spots.Share(spot, LATEST),
+                quality = C_Item.GetItemQualityByID(LATEST),
+            },
+        })
+    end
 
     -- Prices the client only had once the items loaded.
     C_Timer.After(1.5, function()
@@ -676,9 +645,19 @@ local function TurnOn()
 end
 
 local function TurnOff()
+    if not on then
+        return
+    end
     on = false
-    ns.Book = real.Book
-    SwapStateOut()
+    if ticker then
+        ticker:Cancel()
+        ticker = nil
+    end
+    ns.ShownBook = real.ShownBook
+    ns.ShownTrip = real.ShownTrip
+    ns.ShownTripSeconds = real.ShownTripSeconds
+    ns.ShownSkill = real.ShownSkill
+    ns.ShownVerdict = real.ShownVerdict
     book, trip = nil, nil
     if ns.Panel and ns.Panel.SetDemo then
         ns.Panel.SetDemo(false)
@@ -689,6 +668,16 @@ end
 ---@return boolean
 function Demo.IsOn()
     return on
+end
+
+--- Switches the demo off before something changes the real book (emptying
+--- it, or moving to another), and says so, so nobody's left wondering
+--- which book they're looking at.
+function Demo.Stop()
+    if on then
+        TurnOff()
+        print("|cffffd100Creel|r: Demo data is off. The panel and the book are back to your own.")
+    end
 end
 
 --- The slash command's words after "demo".
@@ -711,27 +700,5 @@ function Demo.Command(word)
     end
 end
 
--- Logging out with the demo on puts everything back before the saved data
--- is written. The fishing code has already closed "the trip" for the
--- logout by then, which was the demo's, so the real one is closed here as
--- it would have been: given an end, or dropped if nothing was caught.
-ns.OnEvent("PLAYER_LOGOUT", function()
-    if not on then
-        return
-    end
-    local open = real.trip
-    TurnOff()
-    if open and ns.State.trip == open then
-        open.endAt = time()
-        if (open.caught or 0) == 0 then
-            local trips = ns.Book().trips
-            for index, entry in ipairs(trips) do
-                if entry == open then
-                    table.remove(trips, index)
-                    ns.Book().totals.trips = math.max(0, (ns.Book().totals.trips or 1) - 1)
-                    break
-                end
-            end
-        end
-    end
-end)
+-- Another book, or this one emptied, by whatever route.
+ns.Listen("BOOK_CHANGED", Demo.Stop)

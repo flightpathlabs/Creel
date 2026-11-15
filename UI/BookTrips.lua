@@ -35,7 +35,7 @@ local chosen
 -- Trips ------------------------------------------------------------------------
 
 local function FindTrip(startAt)
-    for _, trip in ipairs(ns.Book().trips) do
+    for _, trip in ipairs(ns.ShownBook().trips) do
         if trip.startAt == startAt then
             return trip
         end
@@ -55,7 +55,7 @@ end
 
 --- "Lake Everstill and The Loch", or "Lake Everstill and 3 more".
 local function Places(trip)
-    local spots = ns.Book().spots
+    local spots = ns.ShownBook().spots
     local names, seen = {}, {}
     for _, spotID in ipairs(trip.spots or {}) do
         local spot = spots[spotID]
@@ -183,7 +183,7 @@ local function CreateRecord(strip)
         local record = self.record
         if record.itemID then
             GameTooltip:AddLine(BookKit.ColoredName(record.itemID), 1, 1, 1)
-            local spot = record.spotID and ns.Book().spots[record.spotID]
+            local spot = record.spotID and ns.ShownBook().spots[record.spotID]
             if spot then
                 GameTooltip:AddLine(
                     ("%s of the catches at %s"):format(
@@ -322,7 +322,7 @@ local function FillDetail(trip)
     local width = detail.scroll:GetWidth()
     page:SetWidth(width)
 
-    local going = ns.State.trip == trip
+    local going = ns.ShownTrip() == trip
     detail.title:SetWidth(width)
     detail.title:SetText(
         BookKit.DayAndTime(trip.startAt)
@@ -471,7 +471,7 @@ local function FillStats(book)
 end
 
 local function Refresh()
-    local book = ns.Book()
+    local book = ns.ShownBook()
     FillStats(book)
     FillRecords(book, tab:GetWidth() - 2 * MARGIN)
 
@@ -555,7 +555,7 @@ local function CreateMenu()
             Refresh()
         end
         root:CreateRadio("All characters", IsChosen, Choose, false)
-        for _, key in ipairs(Characters(ns.Book().trips)) do
+        for _, key in ipairs(Characters(ns.ShownBook().trips)) do
             root:CreateRadio(BookKit.CharacterName(key), IsChosen, Choose, key)
         end
     end)

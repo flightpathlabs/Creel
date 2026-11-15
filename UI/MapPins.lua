@@ -117,7 +117,7 @@ end
 -- The pins -----------------------------------------------------------------------
 
 local function ShowTooltip(pin)
-    local spot = ns.Book().spots[pin.spotID]
+    local spot = ns.ShownBook().spots[pin.spotID]
     if not spot then
         return
     end
@@ -251,7 +251,7 @@ function provider:RefreshAllData()
         return
     end
 
-    for spotID, spot in pairs(ns.Book().spots) do
+    for spotID, spot in pairs(ns.ShownBook().spots) do
         if (spot.caught or 0) > 0 and (ns.settings.mapPins or spotID == pointedID) then
             local x, y = Position(spot, mapID)
             if x then
@@ -292,7 +292,7 @@ end
 ---@param spotID number
 ---@return boolean shown
 function MapPins.ShowSpot(spotID)
-    local spot = ns.db and ns.Book().spots[spotID]
+    local spot = ns.db and ns.ShownBook().spots[spotID]
     local map = provider:GetMap()
     if not spot or not spot.mapX or not BookKit.MapKnown(spot.mapID) then
         return false

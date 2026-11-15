@@ -335,7 +335,7 @@ local function OwnPlaces(skill)
     if not skill then
         return list
     end
-    for spotID, spot in pairs(ns.Book().spots) do
+    for spotID, spot in pairs(ns.ShownBook().spots) do
         local safe = (not spot.getawaySkill or skill > spot.getawaySkill)
             and (not spot.needsSkill or skill >= spot.needsSkill)
         if
@@ -637,7 +637,7 @@ local function FillStep(layout, skill, level)
     local section = tab.step
     local inside = Kit.Inside(layout, section)
     local ranks = Data().ranks or {}
-    local maxRank = ns.State.maxRank
+    local _, maxRank = ns.ShownSkill()
     local index, rank = CurrentRank(maxRank)
 
     local status, how, needs
@@ -837,8 +837,9 @@ local function FillWorth(layout, skill, level, side, bracket)
 end
 
 local function Refresh()
-    local skill = ns.State.rank or 0
-    local effective = ns.State.EffectiveSkill() or skill
+    local rank, _, modifier = ns.ShownSkill()
+    local skill = rank or 0
+    local effective = rank and rank + modifier or skill
     local level = UnitLevel("player") or 1
     local side = UnitFactionGroup("player")
 

@@ -179,7 +179,7 @@ local function Gather(book)
 end
 
 local function Refresh()
-    local book = ns.Book()
+    local book = ns.ShownBook()
     local zones = Gather(book)
 
     tab.pins:SetChecked(ns.settings.mapPins)

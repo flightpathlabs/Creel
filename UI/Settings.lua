@@ -454,6 +454,10 @@ local function AddBookOptions()
             return ns.Me().ownBook and true or false
         end,
         function(value)
+            -- The demo shows a book of its own; this is about the real one.
+            if ns.Demo then
+                ns.Demo.Stop()
+            end
             ns.UseOwnBook(value)
         end
     )
@@ -473,6 +477,10 @@ local function AddBookOptions()
     end, "The three questions from the first time you logged in with Fishing.")
 
     AddButton("Forget everything in this book", "Forget everything", function()
+        -- The question is about the real book, so that's the one on show.
+        if ns.Demo then
+            ns.Demo.Stop()
+        end
         local which = ns.Me().ownBook and "this character's Fishing Book"
             or "the Fishing Book your characters share"
         Kit.Confirm(

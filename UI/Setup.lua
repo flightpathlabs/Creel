@@ -644,6 +644,9 @@ local function Finish()
 
     local me = ns.Me()
     if (me.ownBook and true or false) ~= draft.ownBook then
+        if ns.Demo then
+            ns.Demo.Stop()
+        end
         ns.UseOwnBook(draft.ownBook)
     end
     me.setupDone = true

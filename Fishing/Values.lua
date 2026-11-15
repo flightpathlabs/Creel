@@ -339,11 +339,13 @@ ns.OnEvent("MAIL_INBOX_UPDATE", function()
     end
 end)
 
---- Totals of what's been earned, by kind.
+--- Totals of what's been earned, by kind, in the book given or the one
+--- in use.
+---@param book table|nil
 ---@return number vendor
 ---@return number auction
-function Values.Earned()
-    local sales = ns.Book().sales
+function Values.Earned(book)
+    local sales = (book or ns.Book()).sales
     local vendor, auction = 0, 0
     for _, copper in pairs(sales.vendor) do
         vendor = vendor + copper

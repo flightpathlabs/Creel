@@ -292,7 +292,7 @@ end
 
 --- The report to paste into the issue form: plain text, one fact a line.
 local function ReportText(itemID)
-    local book = ns.Book()
+    local book = ns.ShownBook()
     local find = FindOf(book, itemID) or {}
     local fish = book.fish[itemID]
     local name = C_Item.GetItemNameByID(itemID) or "(name not loaded)"
@@ -469,7 +469,7 @@ local card
 --- share of that place's catches it makes up.
 local function BestSpots(itemID, limit)
     local list = {}
-    for spotID, spot in pairs(ns.Book().spots) do
+    for spotID, spot in pairs(ns.ShownBook().spots) do
         local count = spot.catches[itemID]
         if count and count > 0 then
             table.insert(list, {
@@ -766,7 +766,7 @@ end
 
 --- Lays out the card for one item. Every piece goes under the one before.
 local function FillCard(itemID)
-    local book = ns.Book()
+    local book = ns.ShownBook()
     local fish = book.fish[itemID]
     local width = CARD_WIDTH - 2 * CARD_PADDING
     local y = CARD_PADDING
@@ -1030,7 +1030,7 @@ local function FillStats(book, groups)
         end
     end
 
-    local vendor, auction = ns.Values.Earned()
+    local vendor, auction = ns.Values.Earned(book)
     local width = tab:GetWidth() - 2 * MARGIN
     tab.stats:Fill({
         {
@@ -1057,7 +1057,7 @@ local function FillStats(book, groups)
 end
 
 local function Refresh()
-    local book = ns.Book()
+    local book = ns.ShownBook()
     local groups = Gather(book)
     FillStats(book, groups)
 

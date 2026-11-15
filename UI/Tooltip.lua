@@ -19,7 +19,7 @@ local bestSpots = {}
 local function BestSpotName(itemID)
     if bestSpots[itemID] == nil then
         local best, most = nil, 0
-        for _, spot in pairs(ns.Book().spots) do
+        for _, spot in pairs(ns.ShownBook().spots) do
             local count = spot.catches and spot.catches[itemID] or 0
             if count > most then
                 best, most = spot, count
@@ -38,7 +38,7 @@ local function AddCatchLine(tooltip, data)
     if type(itemID) ~= "number" then
         return
     end
-    local fish = ns.Book().fish[itemID]
+    local fish = ns.ShownBook().fish[itemID]
     if not fish or (fish.caught or 0) == 0 then
         return
     end

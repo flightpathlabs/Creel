@@ -173,7 +173,7 @@ local function CreateBar()
 end
 
 local function Refresh()
-    local book = ns.Book()
+    local book = ns.ShownBook()
     local list = ByItem(book)
 
     -- The table's four lines, split between catches and what they make.
