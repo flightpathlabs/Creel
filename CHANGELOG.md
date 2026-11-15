@@ -4,6 +4,12 @@
 
 - Trip records count the time after a trip's last catch. The longest trip
   could show a little short of the trip itself.
+- The Next page drops a suggested recipe as soon as you learn it.
+- A recipe card's skill line no longer runs past the card's edge, and a
+  card left open no longer comes back by itself when the book reopens.
+- Demo mode: the Next page no longer asks a low-level character for a
+  level, and a marked place or map pin doesn't carry over between the
+  demo and your own book.
 
 ## 0.1.0 (14 November 2026)
 
