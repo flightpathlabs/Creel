@@ -13,6 +13,12 @@ local addonName, ns = ...
 ns.name = addonName
 ns.TITLE = "Creel"
 
+-- The addon's own art: a creel with a hook and lure, in gold on deep blue.
+-- See docs/brand/creel in the workshop for where each file comes from.
+ns.ICON = "Interface\\AddOns\\Creel\\Media\\icon"
+ns.PORTRAIT = "Interface\\AddOns\\Creel\\Media\\portrait"
+ns.LOGO = "Interface\\AddOns\\Creel\\Media\\logo"
+
 -- How the player's choices start out. Setup asks about the first few; the
 -- rest live on the settings page.
 ns.DEFAULT_SETTINGS = {

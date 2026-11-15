@@ -14,10 +14,6 @@ local Kit = ns.Kit
 -- How far outside the minimap's edge the button's centre sits.
 local EDGE_OFFSET = 5
 
--- The Fishing spell's own icon, until Creel has art of its own.
-local FISHING_SPELL = 7620
-local FISHING_ICON = "Interface\\Icons\\Trade_Fishing"
-
 local button
 
 -- Puts the button on the minimap's rim at the saved angle.
@@ -116,7 +112,7 @@ local function Create()
     local icon = frame:CreateTexture(nil, "ARTWORK")
     icon:SetSize(18, 18)
     icon:SetPoint("CENTER")
-    icon:SetTexture(C_Spell.GetSpellTexture(FISHING_SPELL) or FISHING_ICON)
+    icon:SetTexture(ns.ICON)
 
     -- The icon is square and the ring is round, so trim its corners.
     local mask = frame:CreateMaskTexture()

@@ -366,7 +366,7 @@ end
 
 local function RefreshHeader()
     local header = panel.header
-    Kit.SetSpellIcon(header.icon, C_Spell.GetSpellTexture(ns.State.spellID or FISHING_SPELL))
+    header.icon:SetTexture(ns.ICON)
     header.title:SetText(HeaderText())
 
     local hushed = ns.settings.quiet

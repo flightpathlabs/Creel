@@ -4,6 +4,7 @@
 ## Version: 0.1.0
 ## Author: Flight Path Labs
 ## SavedVariables: CreelDB
+## IconTexture: Interface\AddOns\Creel\Media\icon
 ## OptionalDeps: Goldwise
 ## AddonCompartmentFunc: Creel_OnAddonCompartmentClick
 ## X-License: MIT

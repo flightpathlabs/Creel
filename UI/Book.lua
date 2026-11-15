@@ -36,7 +36,7 @@ local BLURB_TOP = 34
 local TABS_HANG = 30
 
 -- Until the brand art arrives, the game's own fishing icon.
-local PORTRAIT = "Interface\\Icons\\Trade_Fishing"
+local PORTRAIT = ns.PORTRAIT
 
 -- The window needs a name for Escape to close it, through UISpecialFrames.
 local FRAME_NAME = "CreelBookFrame"

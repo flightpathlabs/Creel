@@ -20,8 +20,7 @@ ns.Setup = Setup
 local WIDTH = 420
 local HEIGHT = 520
 
--- Until Creel has art of its own, the portrait is the profession's icon.
-local PORTRAIT = "Interface\\Icons\\Trade_Fishing"
+local PORTRAIT = ns.PORTRAIT
 
 -- The fishing card from the professions book (Blizzard_ProfessionsBook,
 -- Camelot templates). It's an upright card, 225 by 275, so the band across
@@ -679,8 +678,7 @@ local function CreateWindow()
     frame:Hide()
 
     frame:SetTitle("Welcome to Creel")
-    local icon = ns.State and ns.State.spellID and C_Spell.GetSpellTexture(ns.State.spellID)
-    frame:SetPortraitToAsset(icon or PORTRAIT)
+    frame:SetPortraitToAsset(PORTRAIT)
 
     frame:SetMovable(true)
     frame:EnableMouse(true)
