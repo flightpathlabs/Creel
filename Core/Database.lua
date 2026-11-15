@@ -91,12 +91,15 @@ end
 
 -- What the interface shows -----------------------------------------------------
 --
--- The panel, the book, the map pins and the tooltips read the book, the
--- skill and the open trip through these, never through ns.Book() and
--- ns.State directly. Each gives the real thing; something that wants the
--- interface to show something else for a while (screenshots, say) can put
--- its own in their place without the fishing code, which always writes
--- through ns.Book() and ns.State, being any the wiser.
+-- The panel, the book, the map pins and the tooltips take the book, the
+-- skill, the level and the open trip they show from these, not straight
+-- from ns.Book(), ns.State or UnitLevel. (The panel does look at the real
+-- trip, to tell it apart from a stand-in.) Each gives the real thing;
+-- something that wants the interface to show something else for a while
+-- (screenshots, say) can put its own in their place without the fishing
+-- code, which always writes through ns.Book() and ns.State, being any the
+-- wiser. What's true right now in the game, such as the pole in hand, a
+-- line in the water, the bags or where the player stands, is read as it is.
 
 --- The book to show.
 ---@return table
@@ -121,6 +124,12 @@ end
 function ns.ShownSkill()
     local state = ns.State
     return state.rank, state.maxRank, state.modifier or 0
+end
+
+--- The character's level to show.
+---@return number
+function ns.ShownLevel()
+    return UnitLevel("player") or 1
 end
 
 --- How the water underfoot compares with the skill: see Spots.Verdict.

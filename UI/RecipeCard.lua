@@ -216,8 +216,11 @@ local function Create()
     card.name = Kit.Paragraph(card, "GameFontNormalLarge")
     card.name:SetPoint("TOPLEFT", nameLeft, -(PADDING + 2))
     card.name:SetWidth(WIDTH - nameLeft - PADDING)
-    card.skill = Kit.Text(card, "GameFontDisableSmall")
+    -- "Leatherworking, taught by a trainer · makes 1" is wider than the
+    -- room beside the icon, so this line wraps too.
+    card.skill = Kit.Paragraph(card, "GameFontDisableSmall")
     card.skill:SetPoint("TOPLEFT", card.name, "BOTTOMLEFT", 0, -4)
+    card.skill:SetWidth(WIDTH - nameLeft - PADDING)
 
     card.texts = BookKit.Pool(function()
         return Kit.Paragraph(card, "GameFontHighlightSmall")
@@ -257,6 +260,9 @@ local function Create()
     card:SetScript("OnHide", function(self)
         self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
         shown = {}
+        -- Closing the book only hides the card along with it; this puts it
+        -- away for good, so it doesn't come back with the book, owner gone.
+        self:Hide()
     end)
 end
 
@@ -314,7 +320,7 @@ local function Fill(sourceID, use)
     end
     table.insert(parts, ("makes %d"):format(use.count or 1))
     card.skill:SetText(table.concat(parts, " · "))
-    y = y + math.max(ICON, card.name:GetStringHeight() + 18)
+    y = y + math.max(ICON, card.name:GetStringHeight() + card.skill:GetStringHeight() + 8)
 
     -- When the recipe stops giving points. The data keeps yellow and grey;
     -- green is halfway between.

@@ -11,8 +11,10 @@ local _, ns = ...
 --
 -- Nothing is saved and nothing real is changed. Only what the interface
 -- shows is swapped: ns.ShownBook(), ns.ShownTrip(), ns.ShownTripSeconds(),
--- ns.ShownSkill(), ns.ShownVerdict() and ns.ShownToNextPoint()
--- (Core/Database.lua) give the invented angler while the demo is on.
+-- ns.ShownSkill(), ns.ShownLevel(), ns.ShownVerdict() and
+-- ns.ShownToNextPoint() (Core/Database.lua) give the invented angler while
+-- the demo is on. The bags, known recipes and where the player stands stay
+-- real.
 -- Everything that writes (catches, casts, sales, the trip, casting and
 -- sound) goes on using the real book and the real state, so fishing for
 -- real with the demo on loses nothing.
@@ -53,6 +55,9 @@ end
 local RANK = 187
 local MAX_RANK = 225
 local BONUS = 25
+-- Old enough for everything up to the next rank, so the Next page asks
+-- only for skill, whatever the character taking the pictures is.
+local LEVEL = 40
 
 -- Where they've fished, in the order they got there, with the skill they
 -- had on arriving and what each water has given them. Real waters, at
@@ -584,6 +589,7 @@ local function TurnOn()
     real.ShownTrip = ns.ShownTrip
     real.ShownTripSeconds = ns.ShownTripSeconds
     real.ShownSkill = ns.ShownSkill
+    real.ShownLevel = ns.ShownLevel
     real.ShownVerdict = ns.ShownVerdict
     real.ShownToNextPoint = ns.ShownToNextPoint
 
@@ -598,6 +604,9 @@ local function TurnOn()
     end
     ns.ShownSkill = function()
         return RANK, MAX_RANK, BONUS
+    end
+    ns.ShownLevel = function()
+        return LEVEL
     end
     -- The water underfoot is the trip's, with no getaways at this skill.
     ns.ShownVerdict = function()
@@ -664,6 +673,7 @@ local function TurnOff()
     ns.ShownTrip = real.ShownTrip
     ns.ShownTripSeconds = real.ShownTripSeconds
     ns.ShownSkill = real.ShownSkill
+    ns.ShownLevel = real.ShownLevel
     ns.ShownVerdict = real.ShownVerdict
     ns.ShownToNextPoint = real.ShownToNextPoint
     book, trip = nil, nil

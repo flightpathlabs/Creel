@@ -339,3 +339,13 @@ ns.Listen("SKILL_CHANGED", function(rank)
     lastRank = rank
     ns.Send("NEXT_POINT", Log.ToNextPoint())
 end)
+
+-- A trip's time grows with each cast, not each catch, so the records are
+-- checked again as every line goes out. Otherwise the casts after a
+-- trip's last catch would never reach its time or catches an hour.
+ns.Listen("LINE_OUT", function()
+    local trip = ns.State.trip
+    if trip and trip.caught > 0 then
+        UpdateRecords(ns.Book(), trip)
+    end
+end)

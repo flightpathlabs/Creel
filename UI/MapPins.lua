@@ -321,6 +321,24 @@ EventUtil.ContinueOnAddOnLoaded("Blizzard_WorldMap", function()
     end
 end)
 
-for _, message in ipairs({ "CATCH", "BOOK_CHANGED", "SETTINGS_CHANGED", "DEMO_CHANGED" }) do
+for _, message in ipairs({ "CATCH", "SETTINGS_CHANGED" }) do
     ns.Listen(message, MapPins.Refresh)
 end
+
+-- Another book has other places under the same numbers, so a place
+-- pointed out in the last one isn't this one's. DEMO_CHANGED also comes
+-- with each demo catch, which changes no book.
+local demoOn = false
+
+ns.Listen("BOOK_CHANGED", function()
+    pointed = nil
+    MapPins.Refresh()
+end)
+ns.Listen("DEMO_CHANGED", function(on)
+    on = on and true or false
+    if on ~= demoOn then
+        demoOn = on
+        pointed = nil
+    end
+    MapPins.Refresh()
+end)

@@ -840,7 +840,7 @@ local function Refresh()
     local rank, _, modifier = ns.ShownSkill()
     local skill = rank or 0
     local effective = rank and rank + modifier or skill
-    local level = UnitLevel("player") or 1
+    local level = ns.ShownLevel()
     local side = UnitFactionGroup("player")
 
     local width = tab.scroll:GetWidth()
@@ -933,3 +933,6 @@ ns.Listen("SKILL_CHANGED", RefreshSoon)
 ns.OnEvent("BAG_UPDATE_DELAYED", RefreshSoon)
 ns.OnEvent("ZONE_CHANGED_NEW_AREA", RefreshSoon)
 ns.OnEvent("PLAYER_LEVEL_UP", RefreshSoon)
+-- A recipe learned (a fish bowl, say) drops off what's worth doing.
+ns.OnEvent("LEARNED_SPELL_IN_SKILL_LINE", RefreshSoon)
+ns.OnEvent("SPELLS_CHANGED", RefreshSoon)

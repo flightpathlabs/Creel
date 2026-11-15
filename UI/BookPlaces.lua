@@ -307,3 +307,22 @@ function BookPlaces.Create(parent)
     tab.Target = Target
     return tab
 end
+
+-- Another book numbers its places afresh, so the marked one goes too.
+-- DEMO_CHANGED also comes with each demo catch, which changes no book.
+local demoOn = false
+
+local function Unmark()
+    if tab then
+        tab.target = nil
+    end
+end
+
+ns.Listen("BOOK_CHANGED", Unmark)
+ns.Listen("DEMO_CHANGED", function(on)
+    on = on and true or false
+    if on ~= demoOn then
+        demoOn = on
+        Unmark()
+    end
+end)

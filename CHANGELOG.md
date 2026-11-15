@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Trip records count the time after a trip's last catch. The longest trip
+  could show a little short of the trip itself.
+
 ## 0.1.0 (14 November 2026)
 
 First version.
