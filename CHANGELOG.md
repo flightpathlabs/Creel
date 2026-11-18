@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- When your pole has no lure and there's one in your bags, the cast key
+  (or double right-click) puts it on first, and the next press casts. The
+  status line says which the next press will do. On by default; there's
+  an option to turn it off.
+- When the lure runs out mid-trip, the stopwatch's short alarm plays and
+  the panel's lure slot glows until you put another on. Also an option.
 - The Next page has a Cooking section: which of your catches still give
   Cooking points at your skill, best first, where they bite, and whether
   you know the recipe or where to buy it. A catch that would level your

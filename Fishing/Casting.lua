@@ -105,6 +105,36 @@ lureButton:RegisterForClicks("LeftButtonUp")
 lureButton:SetAttribute("useOnKeyDown", false)
 Casting.lureButton = lureButton
 
+-- The keys' own lure button. When the pole has no lure and there's one in
+-- the bags, the cast key (or the double right-click) is pointed here
+-- instead of at the cast button, so that press puts the lure on and the
+-- next one casts. Its bindings belong to the cast button like the rest,
+-- so combat clears them all the same.
+local keyLureButton =
+    CreateFrame("Button", "CreelKeyLureButton", UIParent, "SecureActionButtonTemplate")
+keyLureButton:SetSize(1, 1)
+keyLureButton:Hide()
+keyLureButton:SetAttribute("type", "item")
+keyLureButton:SetAttribute("target-slot", MAIN_HAND)
+keyLureButton:RegisterForClicks("AnyUp", "AnyDown")
+
+-- The double right-click's one-click binding, let go of as the cast
+-- button lets go of its own. owner is the cast button.
+SecureHandlerWrapScript(
+    keyLureButton,
+    "OnClick",
+    castButton,
+    [[
+    if not down and owner:GetAttribute("creel-oneshot") then
+        return nil, "clear"
+    end
+    ]],
+    [[
+    owner:SetAttribute("creel-oneshot", nil)
+    owner:ClearBindings()
+    ]]
+)
+
 -- Work that touches secure frames waits until combat is over.
 local afterCombat = {}
 
@@ -146,6 +176,24 @@ local function Keys()
     return keys
 end
 
+-- The lure the keys are set to put on, as Casting.Apply last decided.
+local keyLure
+
+--- The lure the next press of the cast key should put on: there's one
+--- when the option is on, the pole is in hand with no lure on it, the line
+--- isn't out, and the bags have a lure to use. Nil means the key casts.
+---@return number|nil itemID
+function Casting.KeyLure()
+    local state = ns.State
+    if not ns.settings.lureOnKey or not state.hasPole or state.lineOut then
+        return nil
+    end
+    if Casting.CurrentLure() then
+        return nil
+    end
+    return Casting.LureToUse()
+end
+
 --- Points the keys wherever they should point right now. Safe to call any
 --- time; in combat it waits.
 function Casting.Apply()
@@ -166,6 +214,9 @@ function Casting.Apply()
         if state.spellID then
             castButton:SetAttribute("spell", state.spellID)
         end
+        keyLure = Casting.KeyLure()
+        keyLureButton:SetAttribute("item", keyLure and ("item:" .. keyLure) or nil)
+        keyLureButton:SetAttribute("useOnKeyDown", settings.castStyle ~= "double")
 
         if settings.castStyle ~= "key" or not state.hasPole or not state.spellID then
             ns.Send("CASTING_CHANGED")
@@ -175,6 +226,8 @@ function Casting.Apply()
         for _, key in ipairs(Keys()) do
             if state.lineOut and settings.reelWithKey then
                 SetOverrideBinding(castButton, true, key, "INTERACTTARGET")
+            elseif keyLure then
+                SetOverrideBindingClick(castButton, true, key, "CreelKeyLureButton")
             else
                 SetOverrideBindingClick(castButton, true, key, "CreelCastButton")
             end
@@ -184,7 +237,7 @@ function Casting.Apply()
 end
 
 --- Whether the key does anything right now, and what.
----@return string|nil  "cast", "reel" or nil
+---@return string|nil  "cast", "reel", "lure" or nil
 function Casting.KeyAction()
     local settings, state = ns.settings, ns.State
     if settings.castStyle ~= "key" or #Keys() == 0 or not state.hasPole then
@@ -195,6 +248,9 @@ function Casting.KeyAction()
     end
     if state.lineOut and settings.reelWithKey then
         return "reel"
+    end
+    if keyLure then
+        return "lure"
     end
     return "cast"
 end
@@ -278,7 +334,8 @@ ns.OnEvent("GLOBAL_MOUSE_DOWN", function(button)
     if lastRightAt and now - lastRightAt <= ns.settings.doubleClickSpeed then
         lastRightAt = nil
         castButton:SetAttribute("creel-oneshot", true)
-        SetOverrideBindingClick(castButton, true, "BUTTON2", "CreelCastButton")
+        local target = keyLure and "CreelKeyLureButton" or "CreelCastButton"
+        SetOverrideBindingClick(castButton, true, "BUTTON2", target)
     else
         lastRightAt = now
     end
@@ -456,3 +513,75 @@ function Casting.Rivals()
     end
     return found
 end
+
+-- When the lure comes and goes ------------------------------------------------------
+
+-- A lure going on, running out or turning up in the bags changes what the
+-- next press should do. The game says when a lure goes on or comes off,
+-- but its running out is checked on a slow tick as well, to be sure.
+local RECHECK_SECONDS = 2
+
+-- A lure that vanishes with more than this many seconds left was taken
+-- off (cancelled, or the pole swapped), not run out. The checks come every
+-- couple of seconds, so the last one before it runs out is well inside.
+local NEARLY_OUT = 10
+
+-- The pole and its lure's seconds left when last looked at, and whether
+-- the player has been told it ran out and not yet put another on.
+local lastPole, lastLeft
+local wornOff = false
+
+--- Whether the lure ran out while fishing and hasn't been replaced.
+---@return boolean
+function Casting.LureWornOff()
+    return wornOff
+end
+
+local function Recheck()
+    if not ns.db then
+        return
+    end
+    local state = ns.State
+    local pole = state.hasPole and GetInventoryItemLink("player", MAIN_HAND) or nil
+    local icon, left = Casting.CurrentLure()
+    local has = pole ~= nil and icon ~= nil
+
+    -- Only a lure that runs out on the same pole, still in the hand, while
+    -- fishing counts as worn off. Putting the pole away, swapping it, or
+    -- cancelling the lure isn't the lure running out.
+    local ranOut = not has
+        and lastLeft ~= nil
+        and lastLeft <= NEARLY_OUT
+        and pole ~= nil
+        and pole == lastPole
+        and state.trip ~= nil
+    if ranOut then
+        wornOff = true
+        if ns.settings.lureAlert then
+            PlaySound(SOUNDKIT.ALARM_CLOCK_WARNING_3, "SFX")
+        end
+        ns.Send("LURE_WORN_OFF")
+    elseif has and wornOff then
+        wornOff = false
+        ns.Send("LURE_WORN_OFF")
+    end
+    if not pole and wornOff then
+        wornOff = false
+        ns.Send("LURE_WORN_OFF")
+    end
+    lastPole, lastLeft = pole, has and left or nil
+
+    if not ns.InCombat() and Casting.KeyLure() ~= keyLure then
+        Casting.Apply()
+    end
+end
+
+ns.OnEvent("WEAPON_ENCHANT_CHANGED", Recheck)
+ns.OnEvent("BAG_UPDATE_DELAYED", Recheck)
+ns.Listen("POLE_CHANGED", Recheck)
+ns.Listen("LINE_IN", Recheck)
+C_Timer.NewTicker(RECHECK_SECONDS, function()
+    if ns.State.hasPole then
+        Recheck()
+    end
+end)

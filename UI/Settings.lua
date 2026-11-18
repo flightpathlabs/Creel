@@ -208,6 +208,26 @@ local function AddCastingOptions()
         CastingChanged
     )
 
+    AddCheckbox(
+        "lureOnKey",
+        "Put a lure on with the key",
+        "When your pole has no lure and there's one in your bags, the next press puts it "
+            .. "on, and the press after casts. The panel's status line says which it'll do. "
+            .. "Works with the double right-click too.",
+        CastingChanged
+    )
+
+    AddCheckbox(
+        "lureAlert",
+        "Tell me when the lure runs out",
+        "The stopwatch's short alarm plays once, and the panel's lure slot glows until "
+            .. "you put another on.",
+        function()
+            ns.Send("LURE_WORN_OFF")
+            Changed()
+        end
+    )
+
     AddSlider(
         "reelRange",
         "How far the key reaches",

@@ -500,11 +500,19 @@ local function StatusOf()
         end
         return "Line out · right-click the splash", "out"
     end
-    if byKey then
+    -- A lure due first: the slot beside the line shows which, so the line
+    -- itself stays short enough to fit.
+    local lureFirst = ns.Casting.KeyLure() ~= nil
+    if byKey and lureFirst then
+        return ("Ready · %s puts on a lure"):format(shownKey), "ready"
+    elseif byKey then
         return ("Ready · press %s to cast"):format(shownKey), "ready"
     elseif style == "key" then
         return "Choose a key in Creel's options", "idle"
     elseif style == "double" then
+        if lureFirst then
+            return "Double right-click puts on a lure", "ready"
+        end
         return "Double right-click to cast", "ready"
     end
     return "Ready to cast", "ready"
@@ -563,6 +571,15 @@ local function UpdateLure()
     end
     local slot = panel.lure
     local icon, secondsLeft = ns.Casting.CurrentLure()
+    local worn = ns.Casting.LureWornOff() and ns.settings.lureAlert
+    slot.glow:SetShown(worn)
+    if worn then
+        if not slot.pulse:IsPlaying() then
+            slot.pulse:Play()
+        end
+    else
+        slot.pulse:Stop()
+    end
     if icon then
         Kit.SetSpellIcon(slot.icon, icon)
         slot.icon:SetAlpha(1)
@@ -594,6 +611,11 @@ local function ShowLureTooltip(self)
     if nextLure then
         local line = ("Click to put on %s."):format(LureLabel(nextLure))
         GameTooltip:AddLine(line, 1, 1, 1, true)
+        if not icon and ns.Casting.KeyAction() == "lure" then
+            GameTooltip:AddLine("Your cast key puts it on too.", 1, 1, 1, true)
+        elseif not icon and ns.settings.castStyle == "double" and ns.Casting.KeyLure() then
+            GameTooltip:AddLine("A double right-click puts it on too.", 1, 1, 1, true)
+        end
     elseif ns.settings.lureChoice == 0 then
         GameTooltip:AddLine("Set to no lure.", 1, 1, 1, true)
     else
@@ -660,6 +682,24 @@ local function CreateStatus(body)
     edge:SetPoint("BOTTOMRIGHT", 1, -1)
     slot.icon = slot:CreateTexture(nil, "ARTWORK")
     slot.icon:SetAllPoints()
+
+    -- A soft gold pulse round the slot when the lure has run out mid-trip,
+    -- until another goes on: the button's own highlight, breathing.
+    slot.glow = slot:CreateTexture(nil, "OVERLAY")
+    slot.glow:SetTexture("Interface\\Buttons\\ButtonHilight-Square")
+    slot.glow:SetBlendMode("ADD")
+    slot.glow:SetVertexColor(Kit.GOLD[1], Kit.GOLD[2], Kit.GOLD[3])
+    slot.glow:SetPoint("TOPLEFT", -3, 3)
+    slot.glow:SetPoint("BOTTOMRIGHT", 3, -3)
+    slot.glow:Hide()
+    local pulse = slot.glow:CreateAnimationGroup()
+    pulse:SetLooping("BOUNCE")
+    local fade = pulse:CreateAnimation("Alpha")
+    fade:SetFromAlpha(1)
+    fade:SetToAlpha(0.25)
+    fade:SetDuration(0.8)
+    fade:SetSmoothing("IN_OUT")
+    slot.pulse = pulse
 
     -- Out of combat the lure button lies over the slot and takes the
     -- mouse; in combat, or before it's placed, the slot answers itself.
@@ -1917,6 +1957,7 @@ end
 
 ns.Listen("CASTING_CHANGED", RefreshStatus)
 ns.Listen("LURE_CHANGED", UpdateLure)
+ns.Listen("LURE_WORN_OFF", UpdateLure)
 ns.Listen("TRIP_TICK", UpdateClock)
 ns.Listen("DEMO_TICK", UpdateClock)
 ns.Listen("QUIET_CHANGED", WithdrawSound)

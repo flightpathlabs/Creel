@@ -32,6 +32,12 @@ ns.DEFAULT_SETTINGS = {
     -- Swap the key to the game's interact action while the line is out, so
     -- the same key reels in.
     reelWithKey = true,
+    -- When the pole has no lure and there's one in the bags, the cast key
+    -- (or double right-click) puts it on first; the next press casts.
+    lureOnKey = true,
+    -- The stopwatch's short alarm, and a glowing lure slot, when the lure
+    -- runs out mid-trip.
+    lureAlert = true,
     -- How far the interact action looks for the bobber while the line is
     -- out, in yards. The game's own default is too short for a long cast.
     reelRange = 30,
