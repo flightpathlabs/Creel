@@ -585,3 +585,96 @@ C_Timer.NewTicker(RECHECK_SECONDS, function()
         Recheck()
     end
 end)
+
+-- When a lure would help ------------------------------------------------------------
+
+-- Zone fishing levels live on the server, so Creel goes by what each spot
+-- has shown: the skill the game said it needs, or the highest skill a fish
+-- got away at (Spots.Verdict). When a lure's bonus would close that gap and
+-- the pole has none on, the first cast there nudges the player: the lure
+-- slot pulses and the spot line says a lure would help. Once a spot, until
+-- the next login, and never in chat.
+
+-- Spots already nudged this session, by the spot's own table.
+local nudged = setmetatable({}, { __mode = "k" })
+
+--- What a lure would do for the water underfoot, when the pole has none
+--- on and one would close the gap. Nil otherwise.
+---@return table|nil advice  { itemID, inBags, gap, reason }: the lure to
+---         use (from the bags if one there closes the gap, else the least
+---         that would, to buy), how many points short, and "needs" or
+---         "getaway"
+---@return table|nil spot
+function Casting.LureAdvice()
+    local state = ns.State
+    -- A player who set the slot to no lure has said what they want.
+    if ns.settings.lureChoice == 0 then
+        return nil
+    end
+    if not state.hasPole or not state.rank or Casting.CurrentLure() then
+        return nil
+    end
+    -- The real water, not the demo's stand-in: this decides what's true.
+    local verdict, spot, reason = ns.Spots.Verdict()
+    local skill = state.EffectiveSkill()
+    if verdict ~= "risky" or not spot or not skill then
+        return nil
+    end
+    -- Enough for both limits the spot has shown: the skill the game asked
+    -- for, and one past the highest skill a fish got away at.
+    local required =
+        math.max(spot.needsSkill or 0, spot.getawaySkill and spot.getawaySkill + 1 or 0)
+    local gap = required - skill
+    if gap <= 0 then
+        return nil
+    end
+
+    -- From the bags: the lure the slot would use if it's enough, else the
+    -- strongest there that is.
+    local chosen = Casting.LureToUse()
+    if chosen and ns.Lures[chosen].bonus >= gap then
+        return { itemID = chosen, inBags = true, gap = gap, reason = reason }, spot
+    end
+    for _, itemID in ipairs(Casting.LuresInBags()) do
+        if ns.Lures[itemID].bonus >= gap then
+            return { itemID = itemID, inBags = true, gap = gap, reason = reason }, spot
+        end
+    end
+
+    -- None in the bags: the least lure the player can use that would do.
+    local best
+    for itemID, lure in pairs(ns.Lures or {}) do
+        if lure.bonus >= gap and (lure.skill or 0) <= state.rank then
+            if
+                not best
+                or lure.bonus < ns.Lures[best].bonus
+                or (lure.bonus == ns.Lures[best].bonus and itemID < best)
+            then
+                best = itemID
+            end
+        end
+    end
+    if best then
+        return { itemID = best, inBags = false, gap = gap, reason = reason }, spot
+    end
+    return nil
+end
+
+--- The advice, once the player has cast at this spot without a lure. Nil
+--- until then, and once a lure is on.
+---@return table|nil
+function Casting.LureNudge()
+    local advice, spot = Casting.LureAdvice()
+    if advice and nudged[spot] then
+        return advice
+    end
+    return nil
+end
+
+ns.Listen("LINE_OUT", function()
+    local advice, spot = Casting.LureAdvice()
+    if advice and not nudged[spot] then
+        nudged[spot] = true
+        ns.Send("LURE_NUDGE")
+    end
+end)

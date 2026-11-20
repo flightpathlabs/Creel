@@ -571,7 +571,9 @@ local function UpdateLure()
     end
     local slot = panel.lure
     local icon, secondsLeft = ns.Casting.CurrentLure()
-    local worn = ns.Casting.LureWornOff() and ns.settings.lureAlert
+    -- It pulses when the lure ran out, or when a lure would help here.
+    local worn = (ns.Casting.LureWornOff() and ns.settings.lureAlert)
+        or (ns.Casting.LureNudge() ~= nil and not beforeDemo)
     slot.glow:SetShown(worn)
     if worn then
         if not slot.pulse:IsPlaying() then
@@ -596,6 +598,21 @@ local function UpdateLure()
     slot.time:SetText("")
 end
 
+-- Where a lure the player hasn't got comes from, as the Next page's data
+-- has it: fishing supply vendors for the plain ones, the auction house for
+-- what engineers make or vendors rarely stock.
+local function LureSource(itemID)
+    for _, entry in ipairs(ns.Progression and ns.Progression.worth or {}) do
+        if entry.kind == "lure" and entry.itemID == itemID then
+            if entry.place == "vendor" then
+                return ", from a fishing supplies vendor"
+            end
+            break
+        end
+    end
+    return ", from the auction house"
+end
+
 local function ShowLureTooltip(self)
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText("Lure")
@@ -605,6 +622,25 @@ local function ShowLureTooltip(self)
         GameTooltip:AddLine(("On the pole, %s left."):format(ShortTime(secondsLeft)), 1, 1, 1, true)
     else
         GameTooltip:AddLine("Nothing on the pole.", 1, 1, 1, true)
+    end
+
+    -- Why a lure would help here, and which.
+    local advice = not beforeDemo and ns.Casting.LureNudge()
+    if advice then
+        local why = advice.reason == "needs" and "The game asked for more skill here"
+            or "Fish got away here at your skill or above"
+        GameTooltip:AddLine(
+            ("%s: %d more would do. %s would cover it%s."):format(
+                why,
+                advice.gap,
+                LureLabel(advice.itemID),
+                advice.inBags and "" or LureSource(advice.itemID)
+            ),
+            Kit.GOLD[1],
+            Kit.GOLD[2],
+            Kit.GOLD[3],
+            true
+        )
     end
 
     local nextLure = ns.Casting.LureToUse()
@@ -770,6 +806,12 @@ local function SpotText()
     else
         local words = VERDICTS[verdict] or VERDICTS.new
         text = Kit.Colored(words[1], words[2])
+    end
+
+    -- Once a cast here has shown a lure would help, that's the hint, in
+    -- place of the training or next-point one, so the line still fits.
+    if not beforeDemo and ns.Casting.LureNudge() then
+        return text .. SEPARATOR .. Kit.Colored("a lure would help", Kit.GOLD)
     end
 
     local rank, maxRank = ns.ShownSkill()
@@ -1958,6 +2000,7 @@ end
 ns.Listen("CASTING_CHANGED", RefreshStatus)
 ns.Listen("LURE_CHANGED", UpdateLure)
 ns.Listen("LURE_WORN_OFF", UpdateLure)
+ns.Listen("LURE_NUDGE", Refresh)
 ns.Listen("TRIP_TICK", UpdateClock)
 ns.Listen("DEMO_TICK", UpdateClock)
 ns.Listen("QUIET_CHANGED", WithdrawSound)
@@ -1965,7 +2008,13 @@ ns.Listen("QUIET_CHANGED", WithdrawSound)
 ns.OnEvent("PLAYER_TARGET_CHANGED", RefreshStatus)
 ns.OnEvent("PLAYER_REGEN_DISABLED", RefreshStatus)
 ns.OnEvent("PLAYER_REGEN_ENABLED", RefreshStatus)
-ns.OnEvent("WEAPON_ENCHANT_CHANGED", UpdateLure)
+-- A lure going on or coming off changes the slot, and may end the spot
+-- line's "a lure would help".
+ns.OnEvent("WEAPON_ENCHANT_CHANGED", function()
+    if panel and panel:IsShown() then
+        Refresh()
+    end
+end)
 ns.OnEvent("ZONE_CHANGED", UpdateSpot)
 ns.OnEvent("ZONE_CHANGED_INDOORS", UpdateSpot)
 ns.OnEvent("ZONE_CHANGED_NEW_AREA", UpdateSpot)

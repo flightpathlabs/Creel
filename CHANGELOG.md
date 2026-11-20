@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fishing without a lure where fish have got away at your skill, or where
+  the game asked for more: after your first cast there, the lure slot
+  pulses, the spot line says a lure would help, and the slot's tooltip
+  names one that would cover it (from your bags, or one to buy).
 - When your pole has no lure and there's one in your bags, the cast key
   (or double right-click) puts it on first, and the next press casts. The
   status line says which the next press will do. On by default; there's
