@@ -32,8 +32,8 @@ you've caught and where.
 
 **Download**
 
-[CurseForge](https://www.curseforge.com/wow/addons/creel) (waiting for
-approval there), [Wago](https://addons.wago.io/addons/creel), or the zip
+[CurseForge](https://www.curseforge.com/wow/addons/creel),
+[Wago](https://addons.wago.io/addons/creel), or the zip
 from [Releases](https://github.com/flightpathlabs/Creel/releases/latest),
 unpacked into `World of Warcraft\_forever_\Interface\AddOns`.
 
